@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: user | 🌈 A Singleton is Deallocated 🌈]]></title>
+  <link href="http://lawrencelomax.github.io/blog/categories/user/atom.xml" rel="self"/>
+  <link href="http://lawrencelomax.github.io/"/>
+  <updated>2014-09-03T16:26:30+01:00</updated>
+  <id>http://lawrencelomax.github.io/</id>
+  <author>
+    <name><![CDATA[Lawrence Lomax]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Openness for the Developer &amp; the User]]></title>
+    <link href="http://lawrencelomax.github.io/blog/2013/07/17/openness-for-the-developer-and-the-user/"/>
+    <updated>2013-07-17T18:48:00+01:00</updated>
+    <id>http://lawrencelomax.github.io/blog/2013/07/17/openness-for-the-developer-and-the-user</id>
+    <content type="html"><![CDATA[<p>I recently saw this comment in a Hackernews Thread, in reference to the battery performance characteristics of major mobile devices. Emphasis mine:</p>
+
+<blockquote><p>Absolutely that&rsquo;s a problem with Android. It&rsquo;s a natural consequence of having a platform where apps are free to access pretty much any hardware in the background with no review <strong>(that&rsquo;s a good thing if you&rsquo;re a developer though)</strong>.</p>
+
+<p>However, Android gives you tools to see which apps are using the most battery, and you can uninstall them if they&rsquo;re a problem.</p></blockquote>
+
+<p>At first glance, this makes sense. When a developer is given more freedom in the Operating System that they develop for, they have the freedom to make Applications for users. The argument that ‘open is better’ often boils down to this.</p>
+
+<p>The Hacker Mentality of Open Systems has lead to so many great products such as the <a href="http://www.raspberrypi.org">Raspberry Pi</a> , Linux (and therefore Android) and <a href="http://git-scm.com">tools</a> <a href="http://gcc.gnu.org">that</a> <a href="http://www.vim.org">developers</a> <a href="http://en.wikipedia.org/wiki/WebKit">use</a> the world over. The libertarian philosophy of doing as you see fit with the hardware that you own, is certainly romantic in the way it provides a romantic liberation from our closed overloads.</p>
+
+<p>Unfortunately for the Hacker Mentality, nobody cares.</p>
+
+<p>Or should I should say, <em>‘only a very small and vocal minority of people care’</em>. If you are writing an App for non-technical users (and you most likely are), these users care about a few things:</p>
+
+<ol>
+<li>Battery Life</li>
+<li>Lots of fresh and up to date content</li>
+<li>Availability on my Operating System</li>
+<li>Not asking for creepy personal details</li>
+<li>An attractive and friendly User Interface</li>
+<li>An accessible User Interface</li>
+<li>An interface that responds to my <a href="http://en.wikipedia.org/wiki/Responsive_web_design">type of Device</a> and my <a href="http://en.wikipedia.org/wiki/Responsiveness">Touches</a></li>
+<li>No confusing messages</li>
+<li>Battery Life</li>
+<li>Not jumping through elaborate hoops to get to content</li>
+<li>Not having to continually maintain an App&rsquo;s storage and memory usage</li>
+<li>Battery Life</li>
+</ol>
+
+
+<p>It is good to have a debate about which platforms are better for the User across a whole range of criteria. We can have conversations about which criteria are the most important. To see managing the memory usage of an Application in your OS as a feature, is to fundamentally misunderstand what Users <em>really</em> care about.</p>
+
+<p>We now live in a world where a significant proportion of users have <a href="http://www.hanselman.com/blog/TheFloppyDiskMeansSaveAnd14OtherOldPeopleIconsThatDontMakeSenseAnymore.aspx">never seen what I know to be a save icon</a>. Even more profound is users who have never had the pleasure of using a <em>Task Manager</em> before. An OS having a Task Manager is not a feature or a necessity anymore, but having decent battery life certainly is. Achieving better battery life without a Task Manager is the sweet spot.</p>
+
+<blockquote><p><a href="http://www.engadget.com/2010/04/08/jobs-if-you-see-a-stylus-or-a-task-manager-they-blew-it/">If you see a task manager&hellip; they blew it</a></p></blockquote>
+
+<p>Implied in the statement <em>‘that&rsquo;s a good thing if you&rsquo;re a developer though’</em> is that what is ‘good’ for the Developer is good for the User. I&rsquo;d argue the reverse is the case; what&rsquo;s good for the <em>User</em> is good for the <em>Developer</em>, because when a <em>User</em> has a better experience, the <em>Developer</em> is likely rewarded.</p>
+
+<p>This isn&rsquo;t to discount the importance of those with products that are aimed at the Technically Minded. There are hundreds of thousands of users of Hacker News, Slashdot, Reddit and the like. But the source licence used in major components of an OS is not a criteria that the overwhelming majority of people really care about.</p>
+
+<p>Those with techie tendencies should not be so arrogant to assume that those outside their circles, should care about the same things that they do. Caring about the value, simplicity, joy and beauty that Mobile Applications can provide to the masses is essential to being an awesome Mobile Developer.</p>
+]]></content>
+  </entry>
+  
+</feed>
