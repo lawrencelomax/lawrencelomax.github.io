@@ -1,96 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
 
-<!DOCTYPE HTML>
-<html>
-<head>
-	<meta charset="utf-8">
-	<title>A Singleton is Deallocated</title>
-	<meta name="author" content="Lawrence Lomax">
-
-	
-	<meta name="description" content="This the first in a series of four posts on Parsing code in Swift. This first post takes a look at what the development landscape for Cocoa, Swift, &hellip;">
-	
-	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-
-	<link href="/atom.xml" rel="alternate" title="A Singleton is Deallocated" type="application/atom+xml">
-	<link rel="canonical" href="">
-	<link href="/favicon.png" rel="shortcut icon">
-	<link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
-	<!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
-	<script async="true" src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
-	
-</head>
-
-
-<body>
-	<header id="header" class="inner"><h1><a href="/">A Singleton is Deallocated</a></h1>
-<nav id="main-nav"><ul class="main">
-	<li><a href="/">Blog</a></li>
-	<li><a href="/blog/archives">Archives</a></li>
-</ul>
-</nav>
-<nav id="mobile-nav">
-	<div class="alignleft menu">
-		<a class="button">Menu</a>
-		<div class="container"><ul class="main">
-	<li><a href="/">Blog</a></li>
-	<li><a href="/blog/archives">Archives</a></li>
-</ul>
-</div>
-	</div>
-	<div class="alignright search">
-		<a class="button"></a>
-		<div class="container">
-			<form action="http://google.com/search" method="get">
-				<input type="text" name="q" results="0">
-				<input type="hidden" name="q" value="site:lawrencelomax.github.io">
-			</form>
-		</div>
-	</div>
-</nav>
-<nav id="sub-nav" class="alignright">
-	<div class="social">
-		
-		
-		
-		<a class="twitter" href="http://twitter.com/insertjokehere" title="Twitter">Twitter</a>
-		
-		
-		<a class="github" href="https://github.com/lawrencelomax" title="GitHub">GitHub</a>
-		
+  <title><![CDATA[Category: objective-c | A Singleton is Deallocated]]></title>
+  <link href="http://lawrencelomax.github.io/blog/categories/objective-c/atom.xml" rel="self"/>
+  <link href="http://lawrencelomax.github.io/"/>
+  <updated>2014-09-11T22:36:29+01:00</updated>
+  <id>http://lawrencelomax.github.io/</id>
+  <author>
+    <name><![CDATA[Lawrence Lomax]]></name>
     
-    <a class="pinboard" href="https://pinboard.in/u:insertjokehere" title="Pinboard">Pinboard</a>
-    
-		
-		
-		
-		
-		
-		<a class="rss" href="/atom.xml" title="RSS">RSS</a>
-		
-    
-	</div>
-	<form class="search" action="http://google.com/search" method="get">
-		<input class="alignright" type="text" name="q" results="0">
-		<input type="hidden" name="q" value="site:lawrencelomax.github.io">
-	</form>
-</nav>
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
 
-</header>
-	
-		
-	
-	<div id="content" class="inner">
-
-
-    <article class="post">
-	<h2 class="title">
-		
-		<a href="/blog/2014/09/11/swift-parsers-introduction/">
-		
-			Swift Parsers - Introduction</a>
-	</h2>
-	<div class="entry-content">
-		<p>This the first in a series of four posts on Parsing code in Swift. This first post takes a look at what the development landscape for Cocoa, Swift, Objective-C &amp; Parsers.</p>
+  
+  <entry>
+    <title type="html"><![CDATA[Swift Parsers - Introduction]]></title>
+    <link href="http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-introduction/"/>
+    <updated>2014-09-11T22:30:00+01:00</updated>
+    <id>http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-introduction</id>
+    <content type="html"><![CDATA[<p>This the first in a series of four posts on Parsing code in Swift. This first post takes a look at what the development landscape for Cocoa, Swift, Objective-C &amp; Parsers.</p>
 
 <h3>Introduction</h3>
 
@@ -188,49 +116,15 @@
 </ol>
 </div>
 
-
-		
-		
-	</div>
-
-
-<div class="meta">
-	<div class="date">
-
-
-
-
-
-
-
-
+]]></content>
+  </entry>
   
-
-
-<time datetime="2014-09-11T22:30:00+01:00" pubdate data-updated="true"></time></div>
-	<div class="tags">
-
-
-	<a class='category' href='/blog/categories/backends/'>backends</a>, <a class='category' href='/blog/categories/functional/'>functional</a>, <a class='category' href='/blog/categories/ios/'>ios</a>, <a class='category' href='/blog/categories/objective-c/'>objective-c</a>, <a class='category' href='/blog/categories/parsers/'>parsers</a>, <a class='category' href='/blog/categories/swift/'>swift</a>
-
-
-</div>
-	
-	<div class="comments"><a href="/blog/2014/09/11/swift-parsers-introduction/#disqus_thread">Comments</a></div>
-	
-</div>
-</article>
-
-
-    <article class="post">
-	<h2 class="title">
-		
-		<a href="/blog/2014/09/11/swift-parsers-imperative/">
-		
-			Swift Parsers - Imperative</a>
-	</h2>
-	<div class="entry-content">
-		<p>In the <a href="/blog/2014/09/11/swift-parsers-introduction/">previous post</a> I talked about some of the possible requirements for a Parser that extracts data from a Serialization Format and places it in a Language-Native Model. In this post I&rsquo;ll cover how an XML Parser for a Model Object can be built using some of the familiar Imperative features of Swift.</p>
+  <entry>
+    <title type="html"><![CDATA[Swift Parsers - Imperative]]></title>
+    <link href="http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-imperative/"/>
+    <updated>2014-09-11T22:30:00+01:00</updated>
+    <id>http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-imperative</id>
+    <content type="html"><![CDATA[<p>In the <a href="/blog/2014/09/11/swift-parsers-introduction/">previous post</a> I talked about some of the possible requirements for a Parser that extracts data from a Serialization Format and places it in a Language-Native Model. In this post I&rsquo;ll cover how an XML Parser for a Model Object can be built using some of the familiar Imperative features of Swift.</p>
 
 <h3>Model and XML</h3>
 
@@ -388,49 +282,15 @@ public struct Zoo {
 </ol>
 </div>
 
-
-		
-		
-	</div>
-
-
-<div class="meta">
-	<div class="date">
-
-
-
-
-
-
-
-
+]]></content>
+  </entry>
   
-
-
-<time datetime="2014-09-11T22:30:00+01:00" pubdate data-updated="true"></time></div>
-	<div class="tags">
-
-
-	<a class='category' href='/blog/categories/backends/'>backends</a>, <a class='category' href='/blog/categories/functional/'>functional</a>, <a class='category' href='/blog/categories/ios/'>ios</a>, <a class='category' href='/blog/categories/objective-c/'>objective-c</a>, <a class='category' href='/blog/categories/parsers/'>parsers</a>, <a class='category' href='/blog/categories/swift/'>swift</a>
-
-
-</div>
-	
-	<div class="comments"><a href="/blog/2014/09/11/swift-parsers-imperative/#disqus_thread">Comments</a></div>
-	
-</div>
-</article>
-
-
-    <article class="post">
-	<h2 class="title">
-		
-		<a href="/blog/2014/09/11/swift-parsers-functional/">
-		
-			Swift Parsers - Functional</a>
-	</h2>
-	<div class="entry-content">
-		<p>In the <a href="/blog/2014/09/11/swift-parsers-imperative/">previous post</a> we built a <code>decode</code> function to parse data out from XML and into an <code>Animal</code> Model using Imperative techniques. This required some efforts in order to satisfy some of the robustness requirements from the <a href="/blog/2014/09/11/swift-parsers-introduction/">first post</a>.</p>
+  <entry>
+    <title type="html"><![CDATA[Swift Parsers - Functional]]></title>
+    <link href="http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-functional/"/>
+    <updated>2014-09-11T22:30:00+01:00</updated>
+    <id>http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-functional</id>
+    <content type="html"><![CDATA[<p>In the <a href="/blog/2014/09/11/swift-parsers-imperative/">previous post</a> we built a <code>decode</code> function to parse data out from XML and into an <code>Animal</code> Model using Imperative techniques. This required some efforts in order to satisfy some of the robustness requirements from the <a href="/blog/2014/09/11/swift-parsers-introduction/">first post</a>.</p>
 
 <p>In this post we&rsquo;ll cover how we can use Functional Programming techniques on top of the language features of Swift to decode XML to an <code>Animal</code> model. This post assumes that you are comfortable with the <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Generics.html#//apple_ref/doc/uid/TP40014097-CH26-XID_278">Parameterized Types and Generics</a>.</p>
 
@@ -699,282 +559,7 @@ let third: Result&lt;Animal&gt; = second &lt;*&gt; url
 </ol>
 </div>
 
-
-		
-		
-	</div>
-
-
-<div class="meta">
-	<div class="date">
-
-
-
-
-
-
-
-
+]]></content>
+  </entry>
   
-
-
-<time datetime="2014-09-11T22:30:00+01:00" pubdate data-updated="true"></time></div>
-	<div class="tags">
-
-
-	<a class='category' href='/blog/categories/backends/'>backends</a>, <a class='category' href='/blog/categories/functional/'>functional</a>, <a class='category' href='/blog/categories/ios/'>ios</a>, <a class='category' href='/blog/categories/objective-c/'>objective-c</a>, <a class='category' href='/blog/categories/parsers/'>parsers</a>, <a class='category' href='/blog/categories/swift/'>swift</a>
-
-
-</div>
-	
-	<div class="comments"><a href="/blog/2014/09/11/swift-parsers-functional/#disqus_thread">Comments</a></div>
-	
-</div>
-</article>
-
-
-    <article class="post">
-	<h2 class="title">
-		
-		<a href="/blog/2013/09/22/why-i-was-wrong-about-unit-testing-part-1/">
-		
-			Why I Was Wrong About Unit Testing - Part 1</a>
-	</h2>
-	<div class="entry-content">
-		<p><em>Note: I wrote half of this in a crappy coffee shop the weekend before WWDC 2013. There have since been some great blogposts about iOS, Unit Testing &amp; TDD. I hope you get some benefit out of this post. I&rsquo;ve split it into two parts lest anyone fall asleep</em></p>
-
-<h3>A Bad Start</h3>
-
-<p>I can clearly recall my initial, visceral reaction to Unit Testing when learning JUnit at the end of a ComSci 101 module at University. It was one of confusion at the seeming pointlessness  of it all. This is a common view among Unit Test opponents; <em>&lsquo;Write good code, and you won&rsquo;t break anything!&rsquo;</em>. Despite everything that books, lecturers and my peers were saying, I continued to dismiss the efficacy of Unit Testing entirely.</p>
-
-<p>I had these (admittedly <em>lazy</em>) opinions validated by Agency work, where the continual churn of fixed-price projects, out severely limits the amount of time to get <em>anything</em> done. In hindsight I was making excuses for lacking the will to learn, practice or acquire the knowledge to write effective tests.</p>
-
-<p>Additionally, Unit Testing doesn&rsquo;t exactly have the greatest pedigree in the Objective-C development community. Many of the community&rsquo;s <a href="http://blog.wilshipley.com/2005/09/unit-testing-is-teh-suck-urr.html">biggest names</a> are outwardly hostile to it.</p>
-
-<h3>A New Hope</h3>
-
-<p>In the world of Unit Testing there has been a lot of change recently; both in terms of my own personal views and of the tools available.</p>
-
-<p>My views started to change when working on longer term and continuously developed products. As before, the Success of a Product is measured in terms of how it performs in the market. However, the quality of the codebase in terms of stability and documentation becomes increasingly important.</p>
-
-<p>The excuses and laziness that prevented me from getting stuck into Unit Testing began to disappear when I had to spend less time is taken up with heads in a debugger. Hesitancy to make positive changes to the quality of your codebase through refactoring fades away when Unit Tests give you a safety net and sanity check to explore better ideas.</p>
-
-<p>The quality and availability of tools has changed a great deal recently too. There are a whole host of Open Source libraries and frameworks that in practice can be an order of magnitude more expressive than the default <a href="http://en.wikipedia.org/wiki/OCUnit">OCUnit</a> and <a href="https://developer.apple.com/technologies/tools/">XCTest</a>. Apple are now fully on-board with Unit Testing, and to a greater extent, Continuous Integration in <a href="http://images.apple.com/osx/preview/docs/OSX_Mavericks_Core_Technology_Overview.pdf">XCode 5</a></p>
-
-<p>There are host of tools that take different approaches to how to go about the process of testing. The are monolithic frameworks such as <a href="https://github.com/allending/Kiwi">Kiwi</a>, or you can take an a-la-carte approach in libraries that handle specific tasks, such as <a href="https://github.com/specta/specta">specta</a> for assertions, <a href="https://github.com/hamcrest/OCHamcrest">OCHamcrest</a> for matching, <a href="https://github.com/specta/expecta">expecta</a> for asynchronous testing and <a href="http://ocmock.org">OCMock</a> for mocking Objects. With the help of CocoaPods, these frameworks &amp; libraries are <a href="https://github.com/allending/Kiwi/wiki/Up-and-Running-with-CocoaPods">simple to integrate</a>.</p>
-
-<h3>Dodging Dogma</h3>
-
-<p>At first, it may seem totally backwards, to make code changes just for the purposes of box ticking. This perception isn&rsquo;t helped by the <a href="http://www.codingninja.co.uk/the-cult-of-unit-testing/">Cult of Unit Testing</a>, which overemphasises the importance of Unit Testing to the point of confusing the means with the end.</p>
-
-<p>Good iOS &amp; Mac developers <a href="http://lawrencelomax.github.io/blog/2013/07/17/openness-for-the-developer-and-the-user/">rightly care about better applications for End Users</a>. This doesn&rsquo;t exactly fit with  with usual objective metrics and beyond programmer intuition, there are also ways of measuring <a href="http://stephenhaunts.com/2013/02/18/unit-test-coverage-code-metrics-and-static-code-analysis/">how well have tested our code</a>.</p>
-
-<p>It may be necessary to take actions to fit Unit Testing into the way that you think and work. Some sections of an Application&rsquo;s architecture have particularly big gains in terms of quality and yield great results in the future:</p>
-
-<h3>Test Cases as Documentation</h3>
-
-<p>There is a whole debate between <a href="http://nshipster.com/unit-testing/">BDD and TDD</a>, which can be heaps of fun if you like to have unimportant arguments about methodoligies that achieve a similar result. Whatever approach you use, you&rsquo;ll find that thinking about what your tests need to cover, crystallises behaviour as you write.</p>
-
-<p>As individuals, it is all too common to <a href="http://www.codinghorror.com/blog/2006/01/code-reviews-just-do-it.html">over-estimate obviousness in behaviour, for the code we write</a>. Ask a handful of engineers to solve a particular problem and you will receive a chorus of solutions. Header documentation is one way of expressing the behaviour of methods and classes, but this is behaviour that you wish to make public. Headers should remain succinct and avoid expressing internal, private behaviours. Unit Tests can certainly help out here.</p>
-
-<p>When developing in teams of more than a few people, a great deal of programmer intent can get lost in a stream of commits. This is especially true of teams that operate remotely. Unit tests can be wonderfully expressive, self-documenting and clearly define the implementation. Commits containing behaviour with corresponding tests, gives explaination in a clear and often concise manner.</p>
-
-<p>Unfortunately, even the best intentions have to be put aside sometimes and <em>&lsquo;compromises&rsquo;</em> (hacks), may have to be used when in a tight timeframe. Documentation of these moments of voodoo is crucial in a team, this is often done through code comments. Some <a href="http://imgur.com/wGUTG">refactorings</a> later the voodoo may be removed when a better implementation comes along. The voodoo is removed with out-of-date commit comments remaining as a source of incorrect documentation. Removing and amending tests during refactoring keeps consistency between the documentation and the implementation as well as a living commentary of code changes such as refactoring.</p>
-
-<h3>State trips you up</h3>
-
-<p>If you have a lot of internal state within one class, Unit Testing can get a bit messy. An Object with a large amount of accumulated internal state can require disabling a large number of methods with stubbing, or setting many private and public properties to get the Object in a state suitable for performing certain behaviours. This effort is mostly unnecessary, as there is often an implementation of a Class that can have the same behaviour without the same amount of state.</p>
-
-<p>Not only can state pose a problem in terms of effort required to just run some simple Unit Tests, it can have negative effects on the predictability of an Application. Conditionals can be dependent on internal state. This makes modifying a Class for others a difficult task; often requiring intimate knowledge of how all the state interacts.</p>
-
-<p>Mutable Global State can also be troublesome to the predictability of Applications. Classes may make assumptions about global state that are not true in the clean room of a Unit Test environment. Affecting mutable global state in one test case may causes false failure, or false success in successive tests. The correctness of tests is crucial to the future of your application.</p>
-
-<p>One example of this is seen with <a href="http://blogs.msdn.com/b/scottdensmore/archive/2004/05/25/140827.aspx">abuses in the usage of Singletons</a>. Unit Testing a singleton can be very troublesome, as Singletons can tend to contain all many assumptions about the data that they consume, as well as storing state at the instance level, which is in effect global. Increasing the data dependencies of a Class increases its fragility to changes in the rest of the Application.</p>
-
-<p>At first it may seem that the solution to giant this is refactoring via chains of Singletons with more specific responsibilities. On face value this appears to be a solution, since state is siloed into separate classes, decreasing the amount of accumulated state per class. The assumptions about consumed data still exist, just over more Classes. Writing <a href="https://twitter.com/slicknet/status/372798743948824576">methods for these classes that take arguments</a> and do not mutate internal state as far as possible makes Singletons far more testable.</p>
-
-<p>Rather than avoiding writing tests because they are painful, there is an opportunity to consider whether an implementation needs to have so much of a reliance on instance and global state. Unit Tests can highlight these giant, messy machines, more effectively than skim reading an implementation. As has been wisely observed, <a href="http://blogs.msdn.com/b/scottdensmore/archive/2004/05/25/140827.aspx"><em>‘persistent state is the enemy of unit testing’</em></a></p>
-
-<h3>Dealloc is still a thing</h3>
-
-<p>Yes, the <a href="http://clang.llvm.org/docs/AutomaticReferenceCounting.html#dealloc"><code>-dealloc</code> method still exists</a> in the <a href="http://sealedabstract.com/rants/why-mobile-web-apps-are-slow/">wonderful land of ARC</a>. ARC removes a lot of the boiler plate for object destruction, however destruction code may still have to be written; KVO must be cancelled, NSNotification observers must be de-registered and any C  <code>malloc()</code> must be <code>free()</code>&rsquo;d.</p>
-
-<p><a href="http://rspec.info">RSpec</a> has been an inspiration for a few iOS Frameworks. It has a syntax that allows you declare setup and teardown actions in nested code blocks, shared between test cases. In these code blocks a fresh instance can be instantiated  for each test case, where application code may be only ever use a single instance. By using a fresh instance for each test case, the cases do not make any false assumptions about the internal state of an object.</p>
-
-<p>With the repeated creation and destruction of objects, problems from incorrect destruction code will rear their ugly head. Ignoring these problems in the present does not solve the problem, it only delays it. Unit Tests can act as stress-test for object lifecycle, profoundly affecting the ease of moving away from Singletons.</p>
-
-<h3>Side Effects made Explicit</h3>
-
-<p>In an imperative, object-oriented language such as Objective-C, setters may have behaviours beyond just setting a value in memory. We don&rsquo;t <a href="http://en.wikipedia.org/wiki/Functional_programming">write code in a world that enforces a strict mapping of input to output</a> via a function, <a href="http://blog.sigfpe.com/2006/08/you-could-have-invented-monads-and.html">with no side effects</a>. The idea of setter side effects may be distasteful and dangerous for some, since the public interface does not always convey this information. However, setter side effects can be used to encapsulate logic inside the receiving object&rsquo;s class, rather than requiring the caller to call additional methods after a setter.</p>
-
-<p>Test Cases can describe these side effects. For example, a setter may perform an asynchronous task that writes to file. Unit Tests make these behaviours explicit to other developers, as well as asserting that these behaviours should not disappear with future code changes.</p>
-
-<h3>Errors, Fails, Empty, Null</h3>
-
-<p>Even the most experienced engineer can omit error conditions and fail to program defensively. Being somewhat somewhat spoiled by Objective-C, it is easy to get a false sense of security for null checking as it <a href="http://docs.oracle.com/javase/7/docs/api/java/lang/NullPointerException.html">isn&rsquo;t a language that shits the bed anytime a method is called on null</a></p>
-
-<p>It is wishful thinking that an implementation will stay <a href="http://kylerichter.com/?p=44">frozen in time after a public release</a>, since so many applications rely on Web APIs that can changed or be removed. Areas of responsibility that don&rsquo;t handle certain failure conditions can blow up later when APIs change. //A collection will not be happy with <a href="https://developer.apple.com/library/mac/#documentation/Cocoa/Reference/Foundation/Classes/NSMutableArray_Class/Reference/Reference.html#//apple_ref/occ/cl/NSMutableArray">nil keys or values</a> and then the Application will be at the mercy of an exception handler.</p>
-
-<p>Network requests can <a href="https://github.com/AFNetworking/AFNetworking/wiki/Getting-Started-with-AFNetworking#step-4-dive-in">fail and return errors</a>. A lazy stream of values can <a href="https://github.com/ReactiveCocoa/ReactiveCocoa/blob/master/ReactiveCocoaFramework/ReactiveCocoa/RACSignal.h">send errors</a>, saving a file to disk <a href="https://developer.apple.com/library/mac/documentation/Cocoa/Reference/Foundation/Classes/NSData_Class/Reference/Reference.html#//apple_ref/occ/instm/NSData/writeToFile:options:error:">can error</a> and <a href="https://developer.apple.com/library/mac/#documentation/Cocoa/Reference/CoreDataFramework/Classes/NSManagedObjectContext_Class/NSManagedObjectContext.html">saving values in a database</a> can fail. All of this requires some degree of defensive programming, adding to the size of a code base, at the same time as increasing its tolerance to changes in external APIs.</p>
-
-<p>In Mobile we should strive for the leanest and most polished solution for the User. A lean Application is defined by its willingness to cut down on useless features and visual clutter, not minimalism in the number of lines of code. The process of writing Test Cases presents another opportunity to think about behaviours that we expect, such as operations on null objects and Errors being returned from an external service. This may help us program more defensively, if we write tests for these behaviours, crucial to the stability of our code in the future.</p>
-
-<h3>Wrap-Up</h3>
-
-<p>Unit Testing is traditionally seen as a way to validate the correctness of an implementation and ensure that it does not regress in the future.</p>
-
-<p>You may have to make changes to your Application code to make it more testable. This may appear to be backwards at first, but it is worth persevering! Altering your implementation to make it more testable has benefits beyond correctness in the present, and preventing regression in the future. I hope to show you more of these effects in Part 2.</p>
-
-		
-		
-	</div>
-
-
-<div class="meta">
-	<div class="date">
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-09-22T20:45:00+01:00" pubdate data-updated="true"></time></div>
-	<div class="tags">
-
-
-	<a class='category' href='/blog/categories/ios/'>ios</a>, <a class='category' href='/blog/categories/patterns/'>patterns</a>, <a class='category' href='/blog/categories/pragmatism/'>pragmatism</a>, <a class='category' href='/blog/categories/testing/'>testing</a>, <a class='category' href='/blog/categories/xcode/'>xcode</a>
-
-
-</div>
-	
-	<div class="comments"><a href="/blog/2013/09/22/why-i-was-wrong-about-unit-testing-part-1/#disqus_thread">Comments</a></div>
-	
-</div>
-</article>
-
-
-    <article class="post">
-	<h2 class="title">
-		
-		<a href="/blog/2013/07/17/openness-for-the-developer-and-the-user/">
-		
-			Openness for the Developer &amp; the User</a>
-	</h2>
-	<div class="entry-content">
-		<p>I recently saw this comment in a Hackernews Thread, in reference to the battery performance characteristics of major mobile devices. Emphasis mine:</p>
-
-<blockquote><p>Absolutely that&rsquo;s a problem with Android. It&rsquo;s a natural consequence of having a platform where apps are free to access pretty much any hardware in the background with no review <strong>(that&rsquo;s a good thing if you&rsquo;re a developer though)</strong>.</p>
-
-<p>However, Android gives you tools to see which apps are using the most battery, and you can uninstall them if they&rsquo;re a problem.</p></blockquote>
-
-<p>At first glance, this makes sense. When a developer is given more freedom in the Operating System that they develop for, they have the freedom to make Applications for users. The argument that ‘open is better’ often boils down to this.</p>
-
-<p>The Hacker Mentality of Open Systems has lead to so many great products such as the <a href="http://www.raspberrypi.org">Raspberry Pi</a> , Linux (and therefore Android) and <a href="http://git-scm.com">tools</a> <a href="http://gcc.gnu.org">that</a> <a href="http://www.vim.org">developers</a> <a href="http://en.wikipedia.org/wiki/WebKit">use</a> the world over. The libertarian philosophy of doing as you see fit with the hardware that you own, is certainly romantic in the way it provides a romantic liberation from our closed overloads.</p>
-
-<p>Unfortunately for the Hacker Mentality, nobody cares.</p>
-
-<p>Or should I should say, <em>‘only a very small and vocal minority of people care’</em>. If you are writing an App for non-technical users (and you most likely are), these users care about a few things:</p>
-
-<ol>
-<li>Battery Life</li>
-<li>Lots of fresh and up to date content</li>
-<li>Availability on my Operating System</li>
-<li>Not asking for creepy personal details</li>
-<li>An attractive and friendly User Interface</li>
-<li>An accessible User Interface</li>
-<li>An interface that responds to my <a href="http://en.wikipedia.org/wiki/Responsive_web_design">type of Device</a> and my <a href="http://en.wikipedia.org/wiki/Responsiveness">Touches</a></li>
-<li>No confusing messages</li>
-<li>Battery Life</li>
-<li>Not jumping through elaborate hoops to get to content</li>
-<li>Not having to continually maintain an App&rsquo;s storage and memory usage</li>
-<li>Battery Life</li>
-</ol>
-
-
-<p>It is good to have a debate about which platforms are better for the User across a whole range of criteria. We can have conversations about which criteria are the most important. To see managing the memory usage of an Application in your OS as a feature, is to fundamentally misunderstand what Users <em>really</em> care about.</p>
-
-<p>We now live in a world where a significant proportion of users have <a href="http://www.hanselman.com/blog/TheFloppyDiskMeansSaveAnd14OtherOldPeopleIconsThatDontMakeSenseAnymore.aspx">never seen what I know to be a save icon</a>. Even more profound is users who have never had the pleasure of using a <em>Task Manager</em> before. An OS having a Task Manager is not a feature or a necessity anymore, but having decent battery life certainly is. Achieving better battery life without a Task Manager is the sweet spot.</p>
-
-<blockquote><p><a href="http://www.engadget.com/2010/04/08/jobs-if-you-see-a-stylus-or-a-task-manager-they-blew-it/">If you see a task manager&hellip; they blew it</a></p></blockquote>
-
-<p>Implied in the statement <em>‘that&rsquo;s a good thing if you&rsquo;re a developer though’</em> is that what is ‘good’ for the Developer is good for the User. I&rsquo;d argue the reverse is the case; what&rsquo;s good for the <em>User</em> is good for the <em>Developer</em>, because when a <em>User</em> has a better experience, the <em>Developer</em> is likely rewarded.</p>
-
-<p>This isn&rsquo;t to discount the importance of those with products that are aimed at the Technically Minded. There are hundreds of thousands of users of Hacker News, Slashdot, Reddit and the like. But the source licence used in major components of an OS is not a criteria that the overwhelming majority of people really care about.</p>
-
-<p>Those with techie tendencies should not be so arrogant to assume that those outside their circles, should care about the same things that they do. Caring about the value, simplicity, joy and beauty that Mobile Applications can provide to the masses is essential to being an awesome Mobile Developer.</p>
-
-		
-		
-	</div>
-
-
-<div class="meta">
-	<div class="date">
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-07-17T18:48:00+01:00" pubdate data-updated="true"></time></div>
-	<div class="tags">
-
-
-	<a class='category' href='/blog/categories/android/'>android</a>, <a class='category' href='/blog/categories/ios/'>ios</a>, <a class='category' href='/blog/categories/open-source/'>open source</a>, <a class='category' href='/blog/categories/opinion/'>opinion</a>, <a class='category' href='/blog/categories/user/'>user</a>
-
-
-</div>
-	
-	<div class="comments"><a href="/blog/2013/07/17/openness-for-the-developer-and-the-user/#disqus_thread">Comments</a></div>
-	
-</div>
-</article>
-
-<nav id="pagenavi">
-    
-    
-    <div class="center"><a href="/blog/archives">Blog Archives</a></div>
-</nav></div>
-	<footer id="footer" class="inner">Copyright &copy; 2014
-
-    Lawrence Lomax
-
-</footer>
-	<script src="/javascripts/slash.js"></script>
-<script src="/javascripts/jquery.fancybox.pack.js"></script>
-<script type="text/javascript">
-(function($){
-	$('.fancybox').fancybox();
-})(jQuery);
-</script> <!-- Delete or comment this line to disable Fancybox -->
-
-
-<script type="text/javascript">
-      var disqus_shortname = 'lawrencelomax';
-      
-        
-        var disqus_script = 'count.js';
-      
-    (function () {
-      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
-      dsq.src = '//go.disqus.com/' + disqus_script;
-      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
-    }());
-</script>
-
-
-
-
-
-</body>
-</html>
+</feed>

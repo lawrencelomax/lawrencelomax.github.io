@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: opinion | 🌈 A Singleton is Deallocated 🌈]]></title>
+  <title><![CDATA[Category: opinion | A Singleton is Deallocated]]></title>
   <link href="http://lawrencelomax.github.io/blog/categories/opinion/atom.xml" rel="self"/>
   <link href="http://lawrencelomax.github.io/"/>
-  <updated>2014-09-03T16:26:30+01:00</updated>
+  <updated>2014-09-11T22:36:29+01:00</updated>
   <id>http://lawrencelomax.github.io/</id>
   <author>
     <name><![CDATA[Lawrence Lomax]]></name>

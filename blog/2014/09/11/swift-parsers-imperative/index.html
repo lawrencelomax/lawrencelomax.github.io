@@ -1,0 +1,327 @@
+
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Swift Parsers - Imperative - A Singleton is Deallocated</title>
+	<meta name="author" content="Lawrence Lomax">
+
+	
+	<meta name="description" content="In the previous post I talked about some of the possible requirements for a Parser that extracts data from a Serialization Format and places it in a &hellip;">
+	
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<link href="/atom.xml" rel="alternate" title="A Singleton is Deallocated" type="application/atom+xml">
+	<link rel="canonical" href="">
+	<link href="/favicon.png" rel="shortcut icon">
+	<link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+	<!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+	<script async="true" src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+	
+</head>
+
+
+<body>
+	<header id="header" class="inner"><h1><a href="/">A Singleton is Deallocated</a></h1>
+<nav id="main-nav"><ul class="main">
+	<li><a href="/">Blog</a></li>
+	<li><a href="/blog/archives">Archives</a></li>
+</ul>
+</nav>
+<nav id="mobile-nav">
+	<div class="alignleft menu">
+		<a class="button">Menu</a>
+		<div class="container"><ul class="main">
+	<li><a href="/">Blog</a></li>
+	<li><a href="/blog/archives">Archives</a></li>
+</ul>
+</div>
+	</div>
+	<div class="alignright search">
+		<a class="button"></a>
+		<div class="container">
+			<form action="http://google.com/search" method="get">
+				<input type="text" name="q" results="0">
+				<input type="hidden" name="q" value="site:lawrencelomax.github.io">
+			</form>
+		</div>
+	</div>
+</nav>
+<nav id="sub-nav" class="alignright">
+	<div class="social">
+		
+		
+		
+		<a class="twitter" href="http://twitter.com/insertjokehere" title="Twitter">Twitter</a>
+		
+		
+		<a class="github" href="https://github.com/lawrencelomax" title="GitHub">GitHub</a>
+		
+    
+    <a class="pinboard" href="https://pinboard.in/u:insertjokehere" title="Pinboard">Pinboard</a>
+    
+		
+		
+		
+		
+		
+		<a class="rss" href="/atom.xml" title="RSS">RSS</a>
+		
+    
+	</div>
+	<form class="search" action="http://google.com/search" method="get">
+		<input class="alignright" type="text" name="q" results="0">
+		<input type="hidden" name="q" value="site:lawrencelomax.github.io">
+	</form>
+</nav>
+
+</header>
+	
+		
+	
+	<div id="content" class="inner"><article class="post">
+	<h2 class="title">Swift Parsers - Imperative</h2>
+	<div class="entry-content"><p>In the <a href="/blog/2014/09/11/swift-parsers-introduction/">previous post</a> I talked about some of the possible requirements for a Parser that extracts data from a Serialization Format and places it in a Language-Native Model. In this post I&rsquo;ll cover how an XML Parser for a Model Object can be built using some of the familiar Imperative features of Swift.</p>
+
+<h3>Model and XML</h3>
+
+<p>Let&rsquo;s define a hypothetical XML that we wish to parse:</p>
+
+<pre><code>&lt;zoo&gt;
+    &lt;animals&gt;
+        &lt;animal&gt;
+            &lt;type&gt;cat&lt;/type&gt;
+            &lt;name&gt;grumpy&lt;/name&gt;
+            &lt;url&gt;http://en.wikipedia.org/wiki/Grumpy_Cat&lt;/url&gt;
+        &lt;/animal&gt;
+        &lt;animal&gt;
+            &lt;type&gt;cat&lt;/type&gt;
+            &lt;name&gt;long&lt;/name&gt;
+            &lt;url&gt;http://knowyourmeme.com/memes/longcat&lt;/url&gt;
+        &lt;/animal&gt;
+        &lt;animal&gt;
+            &lt;type&gt;dog&lt;/type&gt;
+            &lt;name&gt;i have no idea what i'm doing&lt;/name&gt;
+            &lt;url&gt;http://knowyourmeme.com/memes/i-have-no-idea-what-im-doing&lt;/url&gt;
+        &lt;/animal&gt;
+    &lt;/animal&gt;
+    &lt;facilities&gt;
+        &lt;toilet&gt;42&lt;/toilet&gt;
+        &lt;disabled_parking&gt;true&lt;/disabled_parking&gt;
+        &lt;a_random_assortment_of_characters&gt;sdfdf821n9sfa&lt;/a_random_assortment_of_characters&gt;
+        &lt;seriously&gt;
+            &lt;crazy_nested&gt;
+                &lt;drainage&gt;Good&lt;/drainage&gt;
+            &lt;/crazy_nested&gt;
+        &lt;/seriously&gt;
+    &lt;/facilities&gt;
+&lt;/zoo&gt;
+</code></pre>
+
+<p>The Model includes the parts of the XML that our Application cares about and ignores others:</p>
+
+<pre><code>public struct Animal {
+  let type: String
+  let name: String
+  let url: NSURL
+}
+
+public struct Zoo {
+  let toiletCount: Int
+  let disabledParking: Bool
+  let drainage: String
+  let animals: [Animal]
+ }
+</code></pre>
+
+<p>This is simple and immutable, the Parser forms part of the backend for the User Interface to consume. There&rsquo;s no reason for the User Interface to be able to manipulate these Models directly.</p>
+
+<h3>An Interface to XML</h3>
+
+<p>Stubbing a Protocol or Interface is a great way of getting to grips with the problem that needs to be solved. It also helps to determine what is necessary for to implement, as well as the details that can be ignored to solve the problem at hand. There is also a bunch of <a href="">previously laid out requirements to be considered</a></p>
+
+<p>In parsing this XML<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. I&rsquo;ve made a few assumptions:</p>
+
+<ol>
+<li>I care about the data contained in Text Nodes.</li>
+<li>I need to be able to recursively address Elements within a Tree-like structure.</li>
+<li>I need to be able to enumerate Elements of the same name at the same level in the tree.</li>
+<li>I don&rsquo;t care about anything else (namespaces, attributes, schemas).</li>
+</ol>
+
+
+<p>With those assumptions in mind, a Protocol for defining how data can be extracted from a Parsable XML Node can be made:</p>
+
+<pre><code>public protocol XMLParsableType {
+  func parseChildren(childTag: String) -&gt; [Self]
+  func parseText() -&gt; String?
+}
+</code></pre>
+
+<p><em>&ldquo;That&rsquo;s It?&rdquo;</em>. Yep. Everything else can be composed on top of this minimal protocol; more complex data extraction functions can be built on top of these fundamentals. It&rsquo;s easy to define the responsibility of this Protocol in one sentence:</p>
+
+<blockquote><p><em>&ldquo;An XML Parsable has an ordered collection of Child Parsables and may have an associated String of Text&rdquo;</em></p></blockquote>
+
+<p>Protocols are permitted to have a recursive definition, using the <code>Self</code> placeholder type. How and where the underlying XML document is stored is left to the implementing class/struct/enum<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. As we will see in <a href="">Part 4</a>, obtaining a child may be implemented by traversing a fully reified data structure, or moving a cursor partially visible representation of the structure.</p>
+
+<p>As well as a representation of the Data Serialization itself, there needs to be a consistent way of defining that a Model can extract out values of Data Serialization. The entry point can be defined in terms of a decode protocol<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup> that the Model structures should implement:</p>
+
+<pre><code>public protocol XMLDecoderType {
+  class func decode&lt;X: XMLParsableType&gt;(xml: X) -&gt; Result&lt;Self&gt;
+}
+</code></pre>
+
+<p>This function will be where the action is and can be implemented in the Model type definitions themselves or separately as Extensions. As <code>XMLParsableType</code> has a <code>Self</code> requirement, the usage of an <code>XMLParsableType</code> protocol needs to be <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Generics.html#//apple_ref/doc/uid/TP40014097-CH26-XID_286">satisfied with Generics</a>.</p>
+
+<h3>Surfacing Failure</h3>
+
+<p>In the interface for <code>XMLParsableType</code>, failure is indicated with the return of <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/TheBasics.html#//apple_ref/doc/uid/TP40014097-CH5-XID_483">the <code>None</code> case of the <code>Optional</code> enum</a>. An <code>Optional</code> surrounds the value with a <a href="http://adit.io/posts/2013-04-17-functors,_applicatives,_and_monads_in_pictures.html">Context describing the availability of the value</a>. The absence of a value in a <code>XMLParsableType</code> indicates some kind of failure, but without any information about how the Error came about.</p>
+
+<p>Some Cocoa APIs use <code>nil</code> as the return value represent failure<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup> alone, but idiomatic Cocoa will also include a by-reference <code>NSError</code> to return Error Information in the event of failure. Exceptions are being <a href="https://twitter.com/atnan/status/506832064633901056">weeded out of Cocoa API</a> for all but programmer error. <code>NSError</code> has the an associated <a href="https://developer.apple.com/library/mac/documentation/Cocoa/Reference/Foundation/Classes/NSError_Class/Reference/Reference.html#//apple_ref/occ/instm/NSError/domain">&ldquo;Error Domain&rdquo;</a> as well as <a href="https://developer.apple.com/library/mac/documentation/Cocoa/Reference/Foundation/Classes/NSError_Class/Reference/Reference.html#//apple_ref/doc/uid/20001704-CJBIAHGF"><code>String</code> Description</a> of the cause of the failure. This can be massively helpful as finding the code or resource that is responsible is a nightmare if the only information is &ldquo;a problem occurred somewhere&rdquo;. For example the <code>NSJSONSerialization</code> API will give the line-number of a syntax error in a JSON resource.</p>
+
+<p>Moving to a Safe Swift world, return of an <code>NSError</code> and a possible value can be encapsulated in the same value using an <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Enumerations.html#//apple_ref/doc/uid/TP40014097-CH12-XID_227">Enumeration with Associated Values</a>, rather <a href="https://www.google.co.uk/search?client=safari&amp;rls=en&amp;q=nserror+dereference+pointer&amp;ie=UTF-8&amp;oe=UTF-8&amp;gfe_rd=cr&amp;ei=3MEOVNesH4G28AOjw4D4Bw#rls=en&amp;q=nserror+dereference+pointer">dereferencing pointers</a>. This is the <code>Result</code> with the same availability semantics as an <code>Optional</code>, with additional failure information provided with an <code>NSError</code> in the failure case:</p>
+
+<pre><code>public enum Result&lt;V&gt; {
+  case Error(NSError)
+  case Value(Box&lt;V&gt;)
+}
+</code></pre>
+
+<p>As there are potentially many sources of failure in the <code>decode</code> method, it is handy to write a Helper Method that can &ldquo;promote&rdquo; an <code>Optional</code> to a <code>Result</code> with an Error if the Optional does not contain a value. This will populate the <code>NSError</code> with a default Error Domain and attach a User Defined message:</p>
+
+<pre><code>public func promoteDecodeError&lt;V&gt;(message: String)(value: V?) -&gt; Result&lt;V&gt;
+</code></pre>
+
+<h3>An Imperative Approach</h3>
+
+<p>From the previous post, I mentioned that the lack a dynamic runtime in Swift will mean that bringing over some Objective-C programming techniques will be impossible. As a Swift Parser won&rsquo;t be able to use these techniques, a more traditional approach to parsing will have to be used<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>.</p>
+
+<p>Failing-Fast was outlined as a potential feature of a Parser in the previous post, the implementation of an XML-to-Animal decoding function will need to take this into account. The following Imperative approach shows how it may be possible to extract a <code>Result&lt;Animal&gt;</code> from an <code>XMLParsableType</code>:</p>
+
+<pre><code>  static func decode&lt;X: XMLParsableType&gt;(xml: X) -&gt; Result&lt;Animal&gt; {
+    if let type = XMLParser.parseChildText("type")(xml: xml).toOptional() {
+      if let name = XMLParser.parseChildText("name")(xml: xml).toOptional() {
+        if let urlString = XMLParser.parseChildText("url")(xml: xml).toOptional() {
+          return Result.value(self(type: type, name: name, url: NSURL.URLWithString(urlString)) )
+        }
+        return Result.Error(decodeError("Could not parse 'urlString' as a String"))
+      }
+      return Result.Error(decodeError("Could not parse 'name' as a String"))
+    }
+    return Result.Error(decodeError("Could not parse 'type' as a String"))
+  }
+</code></pre>
+
+<p>This doesn&rsquo;t look great. The nesting is terrible, the Failure and Success conditions are separated around the conditional. In this case, there are only three values, a Model with more properties would make the nesting significantly worse. In Objective-C this can be better tackled by returning early on failure, however this would require lots of force unwrapping<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup>. Conditional Statements are required as Failure when one of the values is missing is a requirement of our Model and is guaranteed to exist in the XML.</p>
+
+<p>Despite these problems, there are some patterns are emerging. Firstly, it looks like extracting the Text from a Child is a common enough task that can be converted to a function in its own right. Obtaining a Child&rsquo;s Child&rsquo;s looks like an interesting area for some more meaningful functions. Optional Chaining is being used to avoid further conditionals.</p>
+
+<p>Most importantly is that the nesting is an Imperative way of implementing that the successful condition for this function is dependent on the availability of three values in the XML. Moving our understanding of the pattern from an Imperative model to a Declarative model will be crucial to building a better way of constructing a <code>decode</code> function.</p>
+
+<h3>Next Time&hellip;</h3>
+
+<p><a href="/blog/2014/09/11/swift-parsers-functional/">Next time</a>, we&rsquo;ll take a Functional approach to the <code>decode</code> method, allowing us to think at a much higher level about how a Model is built.</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>These assumptions actually hold true for a <a href="http://www.livedepartureboards.co.uk/ldbws/">webservice to be consumed</a> in an Application I was prototyping. Depending on the Webservice an Application is consuming, there&rsquo;s a great deal of assumptions that can be made to reduce the complexity of an Implementation.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>One of the most interesting aspects of Haskell is <a href="http://en.wikipedia.org/wiki/Lazy_evaluation">Lazy Evaluation</a>, in particular how it applies to building up a <a href="http://www.cs.kent.ac.uk/people/staff/dat/miranda/whyfp90.pdf">data structure and then traversing it</a>.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>This is heavily inspired by the <a href="http://robots.thoughtbot.com/efficient-json-in-swift-with-functional-concepts-and-generics">ThoughtBot article on JSON Parsing in Swift</a>. In my Project I have multiple decoder types for JSON, XML and CSV.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<li id="fn:4">
+<p>It is really important to understand the semantic differences between <code>nil</code> in Objective-C and <code>None</code>/<code>nil</code> in Objective-C. With Swift/Objective-C interoperability they are used interchangeably. In Swift they can be thought of as &ldquo;the absence of a value&rdquo;, but in Objective-C they can be both &ldquo;the absence of a value&rdquo; and a <a href="http://en.wikipedia.org/wiki/Null-terminated_string">terminal</a>. Swift features <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/OptionalChaining.html#//apple_ref/doc/uid/TP40014097-CH21-XID_356">Optional Chaining</a> to replicate the nil-messaging of Objective-C. As Objective-C APIs cannot make guarantees about the availability of a Reference Type all of the Objective-C bridged APIs, <a href="ceptual/BuildingCocoaApps/InteractingWithObjective-CAPIs.html#//apple_ref/doc/uid/TP40014216-CH4-XID_30">Reference Types are exposed as Optionals &amp; Force-Unwrapped Optionals</a>.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+<li id="fn:5">
+<p>I certainly remember writing this kind of thing by hand, before <a href="http://docs.oracle.com/javase/tutorial/jaxb/intro/">Java annotations could be used for Code Generation</a>.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
+<li id="fn:6">
+<p>It would look <a href="https://gist.github.com/lawrencelomax/00ea2c00c9b6ca5bb4ab">something like this</a><a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+</div>
+
+
+<div class="meta">
+	<div class="date">
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-09-11T22:30:00+01:00" pubdate data-updated="true"></time></div>
+	<div class="tags">
+
+
+	<a class='category' href='/blog/categories/backends/'>backends</a>, <a class='category' href='/blog/categories/functional/'>functional</a>, <a class='category' href='/blog/categories/ios/'>ios</a>, <a class='category' href='/blog/categories/objective-c/'>objective-c</a>, <a class='category' href='/blog/categories/parsers/'>parsers</a>, <a class='category' href='/blog/categories/swift/'>swift</a>
+
+
+</div>
+	
+	<div class="comments"><a href="#disqus_thread">Comments</a></div>
+	
+</div>
+</article>
+
+	<div class="share">
+	<div class="addthis_toolbox addthis_default_style ">
+		
+		
+		<a class="addthis_button_tweet"></a>
+		
+		
+		
+	</div>
+	
+</div>
+
+
+
+<section id="comment">
+    <h2 class="title">Comments</h2>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+</section>
+</div>
+	<footer id="footer" class="inner">Copyright &copy; 2014
+
+    Lawrence Lomax
+
+</footer>
+	<script src="/javascripts/slash.js"></script>
+<script src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+	$('.fancybox').fancybox();
+})(jQuery);
+</script> <!-- Delete or comment this line to disable Fancybox -->
+
+
+<script type="text/javascript">
+      var disqus_shortname = 'lawrencelomax';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-imperative/';
+        var disqus_url = 'http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-imperative/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//go.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,267 @@
+
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Swift Parsers - Introduction - A Singleton is Deallocated</title>
+	<meta name="author" content="Lawrence Lomax">
+
+	
+	<meta name="description" content="This the first in a series of four posts on Parsing code in Swift. This first post takes a look at what the development landscape for Cocoa, Swift, &hellip;">
+	
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<link href="/atom.xml" rel="alternate" title="A Singleton is Deallocated" type="application/atom+xml">
+	<link rel="canonical" href="">
+	<link href="/favicon.png" rel="shortcut icon">
+	<link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+	<!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+	<script async="true" src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+	
+</head>
+
+
+<body>
+	<header id="header" class="inner"><h1><a href="/">A Singleton is Deallocated</a></h1>
+<nav id="main-nav"><ul class="main">
+	<li><a href="/">Blog</a></li>
+	<li><a href="/blog/archives">Archives</a></li>
+</ul>
+</nav>
+<nav id="mobile-nav">
+	<div class="alignleft menu">
+		<a class="button">Menu</a>
+		<div class="container"><ul class="main">
+	<li><a href="/">Blog</a></li>
+	<li><a href="/blog/archives">Archives</a></li>
+</ul>
+</div>
+	</div>
+	<div class="alignright search">
+		<a class="button"></a>
+		<div class="container">
+			<form action="http://google.com/search" method="get">
+				<input type="text" name="q" results="0">
+				<input type="hidden" name="q" value="site:lawrencelomax.github.io">
+			</form>
+		</div>
+	</div>
+</nav>
+<nav id="sub-nav" class="alignright">
+	<div class="social">
+		
+		
+		
+		<a class="twitter" href="http://twitter.com/insertjokehere" title="Twitter">Twitter</a>
+		
+		
+		<a class="github" href="https://github.com/lawrencelomax" title="GitHub">GitHub</a>
+		
+    
+    <a class="pinboard" href="https://pinboard.in/u:insertjokehere" title="Pinboard">Pinboard</a>
+    
+		
+		
+		
+		
+		
+		<a class="rss" href="/atom.xml" title="RSS">RSS</a>
+		
+    
+	</div>
+	<form class="search" action="http://google.com/search" method="get">
+		<input class="alignright" type="text" name="q" results="0">
+		<input type="hidden" name="q" value="site:lawrencelomax.github.io">
+	</form>
+</nav>
+
+</header>
+	
+		
+	
+	<div id="content" class="inner"><article class="post">
+	<h2 class="title">Swift Parsers - Introduction</h2>
+	<div class="entry-content"><p>This the first in a series of four posts on Parsing code in Swift. This first post takes a look at what the development landscape for Cocoa, Swift, Objective-C &amp; Parsers.</p>
+
+<h3>Introduction</h3>
+
+<p>iOS Development has been a fun ride over the last few years. Frameworks are added and improved and generally speaking follow some common idioms. UIKit is well-trodden ground with significant changes as the level of interactivity and responsiveness of what a mobile experience is moves ever forward. When new API introduced or refined, compatibility issues occur, we fix them, we add delete some code that new API subsumes, we write some new features using the new API.</p>
+
+<p>The Backend of an Application is still a bit of a frontier. With no <code>BackEndKit</code> to provide a unified interface of a Network Connections and the Persistent State of the Application, there are no &lsquo;rails&rsquo; to start on and how a Backend is built can vary enormously from Application-to-Application. A expanding world of Libraries has sprung up to simplify and consolidate the thinking of how back-end components intact in Objective-C. Much of the dynamism and flexibility of the Objective-C runtime as well as preprocessor macros is leveraged in order to kill repetitious code with metaprogramming. Now that a new Programming language has arrived and new <a href="https://developer.apple.com/library/prerelease/ios/documentation/General/Conceptual/ExtensibilityPG/index.html">OS features that all but a modular design </a> the time is now to look at best practice in iOS App Backends.</p>
+
+<p>There is a lot of concern how Swift can (and can&rsquo;t be used) used with existing ways of getting-stuff-done in Objective-C. WWDC 2014 and the following months have had a ton to learn, so lets review a little of what we know about how working with Swift will effect iOS Development.</p>
+
+<h3>Cocoa &amp; Swift</h3>
+
+<p>Swift Interoperability with Cocoa is a mostly known quantity. Objective-C interoperability is deeply ingrained in the language, regardless of the philosophical departures that Swift makes from Objective-C. Cocoa will remain, repeated casting will be inconvenient, Strong Types with the Optional type contract will allow us to reason better about the state of the Application. Smaller components of the Application can be migrated to a Swift world in a piecemeal way without drastically changing the underlying architecture due to the extent of the <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/BuildingCocoaApps/index.html#//apple_ref/doc/uid/TP40014216">interoperability features</a>.</p>
+
+<p>There&rsquo;s a lot of new language features, with a focus on moving up the levels of abstraction<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. Having <a href="http://swifter.natecook.com/type/LazySequence/">Lazy Sequences as part of the Standard Library</a> and setter <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Declarations.html">side-effects as part of the language</a> all show that things are getting a lot more modern.</p>
+
+<p>The compiler is now doing a lot more with type inference can be used to increase code density without sacrificing readability or intent. Functions are types like any other value, people are rejoicing as the syntax of the language can be pared back by removing the need to worry about pointers.</p>
+
+<h3>Headers &amp; Classes</h3>
+
+<p>Having headers is fantastic from a documentation point of view, but the evils of duplication makes can make them unwieldy as well as informative. Swift leans on Header generation<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup> and access control to automate the process of generating an Interface from the Implementation itself. Implementation details don&rsquo;t need to be leaked and API stubs don&rsquo;t need to be copy-pasted between <code>.h</code> and <code>.m</code></p>
+
+<p>The implementation of both State and Behavior become considerably &lsquo;cheaper&rsquo; to write, re-write and update. Classes require a fraction of the number of characters and lines-of-code to achieve the same results in terms of defining Properties and Methods to their Objective-C brethren<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>. By making the time taken to write and re-write a Class significantly easier, a great deal of the resistance of decomposing Classes into smaller and more testable Units is removed. The Units become smaller and easier to test, revising code becomes easier as part of a virtuous circle.</p>
+
+<h3>Metaprogramming &amp; Dynamism</h3>
+
+<p>Chief among the concerns with Swift is how we will cope without the dynamism that Objective-C offers. The malleability of the runtime allows for the creation and injection of functions at runtime<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>. Property Mapping libraries and Model Descriptions inspect classes at runtime, defining the interaction of Classes at a much higher level of abstraction. Reducing boiler plate code isn&rsquo;t just about convenience at the current moment in time, it reduces the entropy of the codebase over time.</p>
+
+<p>However, applying these methods will just not work in Swift. Pure Swift constructs are closed at compile time and cannot be tinkered with at runtime. There is no preprocessor available for code generation before it hits the compile. Safety is king, requiring the code to be totally unambiguous about the semantics of the code if there is insufficient information for the Compiler to reason with. There is no Reflection package or framework for performing the same kind of interactions with Classes at runtime, so this seems like a huge problem.</p>
+
+<p>However there are other ways of constructing and building Applications, using Abstractions that seem far away from the Gang-of-Four, Object Oriented Programming and the more dynamic idioms of Objective-C. Functional Programming provides us with abstractions that help us to dispense with the repetition of Imperative programming but without sacrificing safety and predictability. These techniques can be employed without the need to read 42 tutorials about what a Monad is and isn&rsquo;t. Functional Programming has a few fundamental particles, once we learn how they can be applied, the mathematics behind them become a mainly academic exercise that can be ignored if we want to. I&rsquo;ll cover this in the third article in this series.</p>
+
+<h3>Parser Requirements</h3>
+
+<p>Let&rsquo;s take a look at the how we can go about one component within an Application in Swift, Parsing.</p>
+
+<p>I&rsquo;m defining &lsquo;Parsing&rsquo; to be the process of extracting data from <a href="http://en.wikipedia.org/wiki/Comparison_of_data_serialization_formats">Data Serialization format</a> such as XML or JSON, to a native Model structure, valid and usable by the rest of the Application[^monadic-parser]. The Parser itself can have some or all of the following requirements:</p>
+
+<ol>
+<li>Check that a Value exists for a given Key at the current level, or navigate the Data to a deeper level.</li>
+<li>Distinguish between a terminal value in the Data Serialization itself versus the value not existing at all. A <code>null</code> value in a JSON needs to be represented in a distinct way to a value not existing at all.</li>
+<li>Coerced a value in the Serialization format into the type of the value that is expected in the Model.</li>
+<li>Fail early if the the Serialization Format differs in any way from our expectations, without crashing.</li>
+<li>If Parsing failure occurs, five valuable output to make it easier to isolate whether the Parsing code&rsquo;s assumptions about the structure of the data are wrong, or that the structure of the data itself is wrong, or both a wrong.</li>
+<li>Provide defaults, or ways of deterministically deriving defaults for values that are known to be optional in the data structure.</li>
+<li>The interface to the Serialization format&rsquo;s contents should provide a level of abstraction consistent with how it should be used.</li>
+<li>Don&rsquo;t let any external state effect the Parsing unless absolutely necessary. Really, don&rsquo;t.</li>
+<li>Seriously, don&rsquo;t even think about modifying external state. Being able to make a parser concurrent with the rest of the application makes everybody happy.</li>
+<li>It should be easy to Parse serialized data from a variety of sources into the parser. The data may come bundled with the Application, from a HTTP request, or a fixture in a Unit Test.</li>
+<li>Write Unit Tests for all of the boundary conditions, so we can be super-certain that our understanding of the serialization format holds true in the implementation.</li>
+<li>If our Unit Tests don&rsquo;t cover all of the possible conditions in the structure of the format and a new condition is discovered, write a test for to ensure as much of the information about the structure of the data has been captured as possible.</li>
+<li>Don&rsquo;t make the interface for pulling data out of the Serialization more expansive than necessary. If functionality is required that can be expressed in terms of more fundamental extraction functions, define it as a composition of the more fundamental functions.</li>
+</ol>
+
+
+<p>This is not an exhaustive list of requirements and it has already exhausted you and I. Admittedly, some of these requirements are true of Software Development generally, but it is always worth thinking about.</p>
+
+<p>In Objective-C, Parsing can be a minefield of typing and branching. I don&rsquo;t think I&rsquo;d be going out on a limb to say that it is one of the most fragile parts of most codebases. Because of its fragility, if an Objective-C Application has any Unit Tests whatsoever, the Parsing components will have the best coverage. This is a big driving force behind Libraries such as the brilliant <a href="https://github.com/mantle/mantle">Mantle</a></p>
+
+<p>Regardless of the awesomeness of an Objective-C library for parsing data, it won&rsquo;t ever be possible to inspect the expected type of the destination property in the Model at runtime and thereby avoid issues with Model Objects having values of the wrong type assigned<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>. Not only that but Objective-C doesn&rsquo;t fail-fast if an Object assigned an Object of a class differs from the expected class that the assignee Object expects<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup>. This leads to explosions that occurs far away from the original erroneous assignment<sup id="fnref:7"><a href="#fn:7" rel="footnote">7</a></sup>.</p>
+
+<p>However, it would appear that the situation is even worse for Swift. Without much in the way of metaprogramming or some runtime magic it looks like the process of parsing will be incredibly repetitive and laborious.</p>
+
+<h3>XML</h3>
+
+<p>XML is an interesting serialization format because it isn’t JSON. It&rsquo;s a format that we like to chuckle about and deride because of the complexity, but the reality is there are many APIs that Applications need to connect to that use XML. I think that many of the problems that we have with parsing XML comes from the fact that the abstractions we use to extract data from XML aren&rsquo;t that great. Handling all of the failure points in Parsing is a hard task and that&rsquo;s why we want to automate it with metaprogramming and make it bulletproof with Unit Tests.</p>
+
+<p>XML is also format because there is a good amount of variety in the ways that we model an XML document and its content in API<sup id="fnref:8"><a href="#fn:8" rel="footnote">8</a></sup>. Typically JSON is just extracted into the native Array, Dictionary, String &amp; Numeric types of the targeted programming language. XML grew in popularity at a time when system resources like available memory were at much more of a premium than they are today. Constraints like this tend to drive innovation in a few directions, which make the process of parsing a little bit more interesting that pulling values out of a language-native Dictionary object.</p>
+
+<p>If you aren&rsquo;t a crazy person like me you&rsquo;ll probably stick a Webservice in front of whatever else you need to consume and do all the complex data processing on a Server<sup id="fnref:9"><a href="#fn:9" rel="footnote">9</a></sup>, then spit everything out in a RESTful JSON service that normalizes any intricacies and madness in the original data. However the reality isn&rsquo;t always so ideal and its up to the Client Software to process data from a variety of Sources and Serialization Formats.</p>
+
+<h3>Next Time&hellip;</h3>
+
+<p>In the <a href="/blog/2014/09/11/swift-parsers-imperative/">next post</a>, I&rsquo;ll be a crazy person and create a simple XML interface in Swift, and extract data out of it in an Imperative style.</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>The inevitable is happening in iOS Land; Higher Levels of Abstraction as device performance increases, Frameworks and specialized languages for performance critical code. On iOS this is the availability of Accelerate and Metal. The amount of C &amp; C++ in iOS Development may diminish, but I don&rsquo;t see it going away within the next decade.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>This can be seen in any imported Frameworks, whether they are provided by the User, a 3rd Party, or Apple. Just CMD+Click on a third party Class in Xcode and it will take you to the Class or Method definition.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>This means we&rsquo;ll all write better method documentation right?<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<li id="fn:4">
+<p>A lot of the malleability of the Objective-C runtime has allowed to be built on top of it in the first place!<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+<li id="fn:5">
+<p>It is possible to do this by attatching data about Classes of the properties of a Class, manually or automatically (this is part of the role of <a href="https://developer.apple.com/library/mac/documentation/Cocoa/reference/CoreDataFramework/Classes/nsManagedobjectModel_Class/Reference/Reference.html">NSManagedObjectModel</a>). However, this isn&rsquo;t the same thing as being able to know what the Class of an <code>@property</code> is from the Objective-C runtime.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
+<li id="fn:6">
+<p>I think my Pro Strong-Typing-bias is showing. I&rsquo;m just describing one of the disadvantages of a weak type system, when there are also benefits.<a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
+<li id="fn:7">
+<p>The contracts of assignment can be a good deal stronger with liberal use of assertions like <code>NSParameterAssert</code>.<a href="#fnref:7" rev="footnote">&#8617;</a></p></li>
+<li id="fn:8">
+<p>This is covered in more detail in the <a href="">fourth in this series</a>.<a href="#fnref:8" rev="footnote">&#8617;</a></p></li>
+<li id="fn:9">
+<p>You&rsquo;ll also have your pick of languages on the server, so you can use a language &amp; framework that works well in this domain. Either way the Client App will have to consume data at some point and the App should be fault-tolerant enough that it doesn&rsquo;t fall over if there&rsquo;s a hiccup on the server.<a href="#fnref:9" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+</div>
+
+
+<div class="meta">
+	<div class="date">
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-09-11T22:30:00+01:00" pubdate data-updated="true"></time></div>
+	<div class="tags">
+
+
+	<a class='category' href='/blog/categories/backends/'>backends</a>, <a class='category' href='/blog/categories/functional/'>functional</a>, <a class='category' href='/blog/categories/ios/'>ios</a>, <a class='category' href='/blog/categories/objective-c/'>objective-c</a>, <a class='category' href='/blog/categories/parsers/'>parsers</a>, <a class='category' href='/blog/categories/swift/'>swift</a>
+
+
+</div>
+	
+	<div class="comments"><a href="#disqus_thread">Comments</a></div>
+	
+</div>
+</article>
+
+	<div class="share">
+	<div class="addthis_toolbox addthis_default_style ">
+		
+		
+		<a class="addthis_button_tweet"></a>
+		
+		
+		
+	</div>
+	
+</div>
+
+
+
+<section id="comment">
+    <h2 class="title">Comments</h2>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+</section>
+</div>
+	<footer id="footer" class="inner">Copyright &copy; 2014
+
+    Lawrence Lomax
+
+</footer>
+	<script src="/javascripts/slash.js"></script>
+<script src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+	$('.fancybox').fancybox();
+})(jQuery);
+</script> <!-- Delete or comment this line to disable Fancybox -->
+
+
+<script type="text/javascript">
+      var disqus_shortname = 'lawrencelomax';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-introduction/';
+        var disqus_url = 'http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-introduction/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//go.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+</body>
+</html>

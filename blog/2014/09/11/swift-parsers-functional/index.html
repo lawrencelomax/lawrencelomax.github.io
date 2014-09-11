@@ -1,0 +1,438 @@
+
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Swift Parsers - Functional - A Singleton is Deallocated</title>
+	<meta name="author" content="Lawrence Lomax">
+
+	
+	<meta name="description" content="In the previous post we built a decode function to parse data out from XML and into an Animal Model using Imperative techniques. This required some &hellip;">
+	
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<link href="/atom.xml" rel="alternate" title="A Singleton is Deallocated" type="application/atom+xml">
+	<link rel="canonical" href="">
+	<link href="/favicon.png" rel="shortcut icon">
+	<link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+	<!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+	<script async="true" src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+	
+</head>
+
+
+<body>
+	<header id="header" class="inner"><h1><a href="/">A Singleton is Deallocated</a></h1>
+<nav id="main-nav"><ul class="main">
+	<li><a href="/">Blog</a></li>
+	<li><a href="/blog/archives">Archives</a></li>
+</ul>
+</nav>
+<nav id="mobile-nav">
+	<div class="alignleft menu">
+		<a class="button">Menu</a>
+		<div class="container"><ul class="main">
+	<li><a href="/">Blog</a></li>
+	<li><a href="/blog/archives">Archives</a></li>
+</ul>
+</div>
+	</div>
+	<div class="alignright search">
+		<a class="button"></a>
+		<div class="container">
+			<form action="http://google.com/search" method="get">
+				<input type="text" name="q" results="0">
+				<input type="hidden" name="q" value="site:lawrencelomax.github.io">
+			</form>
+		</div>
+	</div>
+</nav>
+<nav id="sub-nav" class="alignright">
+	<div class="social">
+		
+		
+		
+		<a class="twitter" href="http://twitter.com/insertjokehere" title="Twitter">Twitter</a>
+		
+		
+		<a class="github" href="https://github.com/lawrencelomax" title="GitHub">GitHub</a>
+		
+    
+    <a class="pinboard" href="https://pinboard.in/u:insertjokehere" title="Pinboard">Pinboard</a>
+    
+		
+		
+		
+		
+		
+		<a class="rss" href="/atom.xml" title="RSS">RSS</a>
+		
+    
+	</div>
+	<form class="search" action="http://google.com/search" method="get">
+		<input class="alignright" type="text" name="q" results="0">
+		<input type="hidden" name="q" value="site:lawrencelomax.github.io">
+	</form>
+</nav>
+
+</header>
+	
+		
+	
+	<div id="content" class="inner"><article class="post">
+	<h2 class="title">Swift Parsers - Functional</h2>
+	<div class="entry-content"><p>In the <a href="/blog/2014/09/11/swift-parsers-imperative/">previous post</a> we built a <code>decode</code> function to parse data out from XML and into an <code>Animal</code> Model using Imperative techniques. This required some efforts in order to satisfy some of the robustness requirements from the <a href="/blog/2014/09/11/swift-parsers-introduction/">first post</a>.</p>
+
+<p>In this post we&rsquo;ll cover how we can use Functional Programming techniques on top of the language features of Swift to decode XML to an <code>Animal</code> model. This post assumes that you are comfortable with the <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Generics.html#//apple_ref/doc/uid/TP40014097-CH26-XID_278">Parameterized Types and Generics</a>.</p>
+
+<h3>Thinking Functionally</h3>
+
+<p>I&rsquo;m using the fantastic and lightweight <a href="https://github.com/maxpow4h/swiftz/">Swiftz</a> for go-to implementations<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> of many <a href="http://en.wikipedia.org/wiki/Higher-order_function">Higher-Order Functions</a>. It also has a great implementation of the <a href=""><code>Result</code> type from the previous post</a>.</p>
+
+<p>One important concept in Functional Programming is that functions can be thought of as <a href="http://en.wikipedia.org/wiki/First-class_function">First-Class types</a> just like any other variable or constant in code. Objective-C has had blocks for some time now, allowing us to think in terms of passing functions around; assigning a block to a property of a Object. However this isn&rsquo;t the same thing as First-Class functions. Swift allows Functions to be First-Class whilst providing equivalence in functions no matter how they are declared, a <a href="https://developer.apple.com/library/prerelease/mac/documentation/Swift/Conceptual/Swift_Programming_Language/Closures.html">Closure in Swift</a> is just another kind of function <a href="http://oleb.net/blog/2014/07/swift-instance-methods-curried-functions/">just like a method</a> or <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Functions.html#//apple_ref/doc/uid/TP40014097-CH10-XID_243">Free Function</a>. Blocks are no longer the best way of passing around a computation, we can consider the equivalence of functions declared with <code>func</code> in a Global or Class scope with local Closures:</p>
+
+<pre><code>let intToNumber:  Int -&gt; NSNumber = NSNumber.numberWithInt
+let intToNumber1: Int -&gt; NSNumber = { NSNumber.numberWithInt($0) }
+</code></pre>
+
+<p>By now it should be second nature to think of the concatenation of two Strings using the <a href="http://swifter.natecook.com/operator/pls/">+ operator</a>. As functions are types like any other, two functions can be joined together just like a String.</p>
+
+<pre><code>public func •&lt;A, B, C&gt;(f: B -&gt; C, g: A -&gt; B) -&gt; A -&gt; C    // The 'compose' operator from Swiftz
+
+func prefixer(prefix: String)(string: String) -&gt; String { // Equivalent to String -&gt; String -&gt; String
+  return prefix + string
+}
+func postfixer(postfix: String)(bar: String) -&gt; String { // Equivalent to String -&gt; String -&gt; String
+  return string + postfix
+}
+
+let happyPrefix = prefixer("😃") // String -&gt; String. The first String argument of 'prefixer' is applied.
+let sadPostfix = postfixer("😞") // String -&gt; String. The first String argument of 'postfixer' is applied.
+let infixer = happyPrefix • sadPostfix // String -&gt; String. Two functions are joined, the output of the first becomes the input of the second.
+let string = infixer("Good Morning") // "😃 Good Morning 😞"
+</code></pre>
+
+<p>In this example, the Swiftz <a href="https://github.com/maxpow4h/swiftz/blob/master/swiftz_core/swiftz_core/Functions.swift#L59">compose operator (•)</a> is used in conjunction with <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Declarations.html">Curried Functions</a>. This might look a little crazy for now, but two important concepts are:</p>
+
+<ol>
+<li>A specialized function can be created from a curried function, by applying some, but not all of the arguments.</li>
+<li>New functions can be created locally by composing other functions with fancy operators.</li>
+</ol>
+
+
+<h3>Building new Parsers</h3>
+
+<p>With the idea of composing functions <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Declarations.html#//apple_ref/doc/uid/TP40014097-CH34-XID_598">without having to declare one</a> can be carried over to our problem of decoding XML to a Model;  A specialized Parser function can be made for each of the values that need to be parsed out in the Model. In order to construct an <a href=""><code>Animal</code> Model</a> three parsers are required, with the values placed into the context of a <code>Result</code> for failure information:</p>
+
+<pre><code>let kindParser: XMLParsableType -&gt; Result&lt;String&gt; = ...
+let nameParser: XMLParsableType -&gt; Result&lt;String&gt; = ...
+let urlParser: XMLParsableType -&gt; Result&lt;String&gt; = ...
+</code></pre>
+
+<p>Further, we can think of each of the properties of a decoded <code>Animal</code> as the application of the above functions to the source <code>XMLParsableType</code> from the XML Document.</p>
+
+<pre><code>let kind: Result&lt;String&gt; = typeParser(xml)
+let name: Result&lt;String&gt; = typeParser(xml)
+let url: Result&lt;String&gt; urlParser(xml)
+</code></pre>
+
+<p>We&rsquo;ve allready seen that we can use Swift&rsquo;s Optional Chaining in our parser to limit the number of occurences of handling failure. However, <code>Result</code> isn&rsquo;t a blessed by the language with <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/OptionalChaining.html#//apple_ref/doc/uid/TP40014097-CH21-XID_356">special syntax for chaining</a>. It would be great to get the same behaviour for the Result type.</p>
+
+<p>Turns out that Swiftz has the <a href="https://github.com/maxpow4h/swiftz/blob/master/swiftz_core/swiftz_core/Optional.swift#L42">following function declared</a><sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>:</p>
+
+<pre><code>public func &gt;&gt;-&lt;A, B&gt;(a: Result&lt;A&gt;, f: A -&gt; Result&lt;B&gt;) -&gt; Result&lt;B&gt;
+</code></pre>
+
+<p>It is called <a href="http://bit.ly/1weNYBM">&lsquo;Bind&rsquo;</a> and it can be described in the following way:</p>
+
+<blockquote><p><em>&ldquo;If the parameter <em>a</em> is a Value case of the result apply the function <em>f</em> returning the <em>Result</em> of <em>f</em>. If the parameter <em>a</em> is an Error, just return the original <em>Result</em>&rdquo;</em></p></blockquote>
+
+<p>Sounds the same as Optional Chaining! In fact Optional Chaining <a href="https://github.com/maxpow4h/swiftz/blob/master/swiftz_core/swiftz_core/Optional.swift#L42">can be defined in this way</a>. It should be possible to construct a <code>Result&lt;String&gt;</code> for the  <code>kind</code> value of an <code>Animal</code> this way:</p>
+
+<pre><code>let kind: Result&lt;String&gt; = xml.parseChildren("type").first &gt;&gt;- { $0.parseText() } // Compiler Error!
+</code></pre>
+
+<p>Damn, looks like the types don&rsquo;t match up since the <code>kind</code> value should be a <code>Result&lt;String&gt;</code> instead of a <code>String?</code>. Besides, this looks much worse with needing to use an inline closure to invert the <code>parseText</code> 0-arg instance method on <code>xml</code> into a function that takes an <code>xml</code> parameter and executes <code>parseText</code>. There has to be a better way of doing this&hellip;</p>
+
+<h3>XMLParser: A Helper</h3>
+
+<p>A new approach is to create a few Helper Functions that build on top of the basic functionality of <code>XMLParsableType</code><sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup> to extract a Single child of a given Element name, providing the value in the context of a <code>Result</code> type, and accept the <code>XMLParsableType</code> as a parameter of function that isn&rsquo;t bound to an instance:</p>
+
+<pre><code>public final class XMLParser {
+    public class func parseChild&lt;X: XMLParsableType&gt;(elementName: String)(xml: X) -&gt; Result&lt;X&gt; 
+    public class func parseText&lt;X: XMLParsableType&gt;(xml: X) -&gt; Result&lt;String&gt;
+}
+</code></pre>
+
+<p>This can then be used to extract out the <code>kind</code> value with our understanding of the <code>Bind</code><sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup> operator:</p>
+
+<pre><code>let kind: Result&lt;String&gt; = XMLParser.parseChild("kind")(xml: xml) &gt;&gt;- XMLParser.parseText
+</code></pre>
+
+<p>Now we&rsquo;re talking! The <code>XMLParser.parseText</code> function is not invoked directly and is placed into a chain of operations to extract out text of an XML Element. These functions are being joined as if it were any other type of data.</p>
+
+<p>The  <code>name</code> property of the <code>Animal</code> model is nested a few XML Elements deep, but it can be extracted by chaining the Parsing functions in the same way:</p>
+
+<pre><code>let name: Result&lt;String&gt; = XMLParser.parseChild("nested_nonsense")(xml: xml) &gt;&gt;- XMLParser.parseChild("name") &gt;&gt;- XMLParser.parseText 
+</code></pre>
+
+<p>The <code>XMLParser.parseChild("name")</code> expression evaluates to a function of <code>XMLParsableType -&gt; Result&lt;XMLParsableType&gt;</code> instead of just a <code>Result</code> value. We&rsquo;re seeing that currying is being used to create a specialized Parser function for a specific XML element, chained together in a sequence of functions.</p>
+
+<p>This is the heart of Function Composition, with <code>Bind</code> performing the behaviour of continuing on success, bailing out as soon as an Error occurs. The possibility of failure within any of the sequences of operations is an essential property of this Parser. Previously this was handled by Optional Chaining and <code>if</code> statements in the <a href="">Imperative version</a>. Using <code>&gt;&gt;-</code> there isn&rsquo;t a branching statement in sight<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>.</p>
+
+<h3>Common Operations</h3>
+
+<p>There appeares to be some common chained functions appearing. These can be extracted out and into the <code>XMLParser</code> class<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup> and built using the same Higher-Order Functions and other functions and methods that have been defined for <code>XMLParserType</code></p>
+
+<pre><code>extension XMLParser {
+    public class func parseChildText&lt;X: XMLParsableType&gt;(elementName: String)(xml: X) -&gt; Result&lt;String&gt; {
+      let textParser: X -&gt; Result&lt;String&gt; = promoteXmlError("Could not parse text for child \(elementName)") • { $0.parseText()}
+      return self.parseChild(elementName)(xml: xml) &gt;&gt;- textParser
+    }
+
+    public class func parseChildRecursive&lt;X: XMLParsableType&gt;(elementNames: [String])(xml: X) -&gt; Result&lt;X&gt; {
+      return elementNames.reduce(Result.value(xml)) { (parsable: Result&lt;X&gt;, currentElementName) in
+        return parsable &gt;&gt;- self.parseChild(currentElementName)
+      }
+    }
+
+    public class func parseChildRecusiveText&lt;X: XMLParsableType&gt;(elementNames: [String])(xml: X) -&gt; Result&lt;String&gt; {
+      let textParser: X -&gt; Result&lt;String&gt; = promoteXmlError("Could not parse text for child \(elementNames.last)") • { $0.parseText()}
+      return self.parseChildRecursive(elementNames)(xml: xml) &gt;&gt;- textParser
+    }
+}
+</code></pre>
+
+<p><a href="http://swifter.natecook.com/func/reduce/"><code>reduce</code></a> is another Higher-Order function of the <a href="http://swifter.natecook.com/protocol/SequenceType/"><code>Sequence</code> type</a> making an appearance. Using it means that the <code>parseChildRecursive</code> <a href="http://bit.ly/1qZxDCb">doesn&rsquo;t need to be implemented in a recursive manner</a>.</p>
+
+<p>These functions can now be used with in the Animal <code>decode</code> function to make extracting data from the XML more obvious:</p>
+
+<pre><code>let kind: Result&lt;String&gt; = XMLParser.parseChildText("kind")(xml: xml)
+let name: Result&lt;String&gt; = XMLParser.parseChildTextRecursive(["nested_nonsense", "name"])
+</code></pre>
+
+<p>Lovely.</p>
+
+<h3>Parsers for Other Types</h3>
+
+<p>We&rsquo;ve seen that the definitions inside the <code>XMLParser</code> Helper don&rsquo;t provide methods for interpreting the <code>String</code> of a XML Text element as every possible Type as Numeric and Complex types within an XML document are represented in textual form. Our Model classes are concerned with Numeric types such as <code>Double</code> and <code>Int</code>, so the parsing of these types will need to be incorporated into the <code>decode</code> method.</p>
+
+<p>Unlike JSON, there is no <a href="http://en.wikipedia.org/wiki/JSON#Data_types.2C_syntax_and_example">explicit syntax for a Numeric value</a>, so the interpretation of these types isn&rsquo;t a requirement of an XML Parser. Instead of bloating the <code>XMLParser</code> class with every variation of interpreting Text as a other Types, the Parser functions for values in the Model can be composed with <code>XMLParser</code> functions and other functions that interpret <code>String</code>s as the other types.</p>
+
+<p>Coercing a value from a String to a Numeric type may not always work. The String &lsquo;14123&rsquo; can be interpreted as an <code>Int</code> but the value <code>134djk23</code> cannot. Again, this falls into our notion of Model decoding failure. The <code>NSNumberFormatter</code> class is a Cocoa way of interpreting Strings as Numbers, we can write an extension for the  <code>Int</code> type to intepret a <code>String</code> as an <code>Int</code>, with <code>Optional.None</code> used to representing failure.</p>
+
+<pre><code>public extension Int {
+  public static func parseString(string: String) -&gt; Int? {
+    let formatter = NSNumberFormatter()
+    let number = formatter.numberFromString(string)
+    return number?.integerValue
+  }
+}
+</code></pre>
+
+<p>As previously mentioned, Cocoa APIs in Swift expose failure as the <code>nil</code>/<code>.None</code> case of an Optional Type[^nserror-failure]. However, our Parser requires the additional information in a <code>Result</code> type. One approach is to extend Cocoa classes with additional methods that return a <code>Result</code> instead of an <code>Optional</code>, but this might not be the ideal solution<sup id="fnref:7"><a href="#fn:7" rel="footnote">7</a></sup>. Instead we can again think in terms of Function Composition to make a function that returns <code>Result&lt;Int&gt;</code> instead of <code>Int?</code></p>
+
+<p>For example, a definition of <code>toiletCount</code> requires interpreting a <code>String</code> in the XML as an <code>Int</code> in the model. This function can be built from closures:</p>
+
+<pre><code>let toiletCountParser: String -&gt; Result&lt;Int&gt; = { promoteDecodeError("Could not parse 'disabled_parking")(value: Int.parseString($0)) }
+</code></pre>
+
+<p>Or we can use the <a href=""><code>Compose</code> and <code>Bind</code> Operators again</a>:</p>
+
+<pre><code>let toiletCountParser: String -&gt; Result&lt;Int&gt; = promoteDecodeError("Could not parse 'disabled_parking") • Int.parseString
+let toiletCount =  XMLParser.parseChildText(["facilities", "toilet"])(xml: xml) &gt;&gt;- toiletCountParser
+</code></pre>
+
+<p>The <code>Animal</code> and <code>Zoo</code> Models both implement the <code>XMLDecoderType</code> protocol. In this case there are a number of <code>Animal</code> Models belonging to a <code>Zoo</code>, so the <code>decode</code> functions can be reused to extract out each of the <code>Animal</code> Models contained in a parent <code>Zoo</code>:</p>
+
+<pre><code>let animals = XMLParser.parseChild("animals")(xml: xml) &gt;&gt;- XMLParser.parseChildren("animal") &gt;&gt;- resultMap(Animal.decode)
+</code></pre>
+
+<p>There is another function that takes the output of <code>XMLParser.parseChildren</code> as an input, of type <code>Result&lt;[X]&gt;</code>. The <code>resultMap</code> function is like a regular <code>map</code> on an <code>Array</code>, except with the return of a <code>Result.Error</code> if any of the applications of the <code>map</code> function fails:</p>
+
+<pre><code>public func resultMap&lt;A, B&gt;(map: A -&gt; Result&lt;B&gt;)(array: [A]) -&gt; Result&lt;[B]&gt;
+</code></pre>
+
+<h3>Applicatives</h3>
+
+<p>Now we have everything we need to extract values out of <code>XMLParsableType</code> and into <code>Result</code> containers for each of the values that need to be extracted. Now the <code>Result</code> values need to be chained in the following way:</p>
+
+<blockquote><p><em>&ldquo;If all of the <code>Result</code>s corresponding to each of the Values are Successful, return our Model with the Values from the Result context applied to the Model Constructor function, otherwise just return the first Errored Result.&rdquo;</em></p></blockquote>
+
+<p>Let&rsquo;s turn back to Curried Functions, this time to a Curried &lsquo;Constructor&rsquo;<sup id="fnref:8"><a href="#fn:8" rel="footnote">8</a></sup>:</p>
+
+<pre><code>static func build(type: String)(name: String)(url: NSURL) -&gt; Animal {
+  return self(type: type, name: name, url: url)
+}
+</code></pre>
+
+<p>By adding a little more context to each of the applications of Higher-Order functions, we should be able to follow what is going on as the <code>Animal.build</code> function down to a <code>Result&lt;Animal&gt;</code>:</p>
+
+<pre><code>// These are previously defined using Higher-Order functions and XMLParser
+let type: Result&lt;String&gt; = ...
+let name: Result&lt;String&gt; = ...
+let url: Result&lt;NSURL&gt; = ...
+
+// The Build Function is a Curried function that will yeild functions with every application until we have the Animal value.
+let build: String -&gt; String -&gt; NSURL -&gt; Animal = self.build
+// Each of these stage gets the Animal structure closer to being initialized
+let first: Result&lt;String -&gt; NSURL -&gt; Animal&gt; = self.build &lt;^&gt; type
+let second: Result&lt;NSURL -&gt; Animal&gt; = first &lt;*&gt; name
+let third: Result&lt;Animal&gt; = second &lt;*&gt; url
+</code></pre>
+
+<p>This feels a lot like solving a Mathmatical equation by reducing the variables to balance each side of the equation. There are a few more Higer-Order functions that are being used here, doing the heavy lifting of pulling values and functions out of a <code>Result</code> context executing a function and then sticking the return value back in a <code>Result</code> again.</p>
+
+<p>Firstly, the <a href="https://github.com/maxpow4h/swiftz/blob/master/swiftz_core/swiftz_core/Result.swift#L83"><code>fmap</code> operator</a>:</p>
+
+<pre><code>public func &lt;^&gt;&lt;A, B&gt;(f: A -&gt; B, a: Result&lt;A&gt;) -&gt; Result&lt;B&gt;
+</code></pre>
+
+<p>It can be thought of in the following way:</p>
+
+<blockquote><p><em>&ldquo;If the Result <em>a</em> is an Value apply the function <em>f</em> and place the result back in a Result, if the Result <em>a</em> is an Error, just return the Result immediately&rdquo;</em></p></blockquote>
+
+<p>The property of this operator is that the applied function <code>f</code> doesn&rsquo;t have to ever have to be aware that the applied argument has been part of a <code>Result</code> context.</p>
+
+<p>Secondly, we can take a look the <a href="https://github.com/maxpow4h/swiftz/blob/master/swiftz_core/swiftz_core/Result.swift#L94"><code>apply</code> operator</a>:</p>
+
+<pre><code>public func &lt;*&gt;&lt;A, B&gt;(f: Result&lt;A -&gt; B&gt;, a: Result&lt;A&gt;) -&gt; Result&lt;B&gt;
+</code></pre>
+
+<p>It too can be described:</p>
+
+<blockquote><p> <em>&ldquo;If the Result <em>f</em> is an Error just return it immediately, if the Result <em>a</em> is an Error just return it immediately. Otherwise pull the function out of <em>f</em> and the value out of <em>a</em>, apply <em>a</em> to <em>f</em> then place the returned value in a Result&rdquo;</em></p></blockquote>
+
+<p>Again, these functions themseves no longer need to be aware that values are contained in a <code>Result</code> context.</p>
+
+<p>Between <code>&lt;^&gt;</code>, <code>&lt;*&gt;</code> and <code>&gt;&gt;-</code> all the combinations of applying Values to Functions inside and outside of a <code>Result</code> are covered. These Operators allow us to use pull values and functions into-and-out-of <code>Result</code> contexts, using functions that don&rsquo;t have to be aware of the fact that the values and Functions may have come out of a <code>Result</code><sup id="fnref:9"><a href="#fn:9" rel="footnote">9</a></sup>.</p>
+
+<h3>Teach the Controversy</h3>
+
+<p>There&rsquo;s a lot to take in, some of the benefits should be clear, others are a bit more subtle. I don&rsquo;t deny some of this doesn&rsquo;t have a steep learning curve, it may go against many years of experience with languages that don&rsquo;t have semantics for dealing with Functions as things that can be combined in these ways. All of these concepts and implementations are nothing new and are the products of high-shouldered giants. With the modernity of Swift we have the opportunity to incorporate more Functional Programming into Native iOS and Mac Developments. Given that there are certain programming techniques that can&rsquo;t be carried over from Objective-C, its worth considering incorporating some Functional Programming if it fits the task at hand.</p>
+
+<p>There&rsquo;s a lot of concern that Operator Overloading is going to lead to a lot of Smart People doing some very silly things<sup id="fnref:10"><a href="#fn:10" rel="footnote">10</a></sup> for the purpose of making dense, concise and far-too-clever code. The reality of these operators is that they are small in number and aren&rsquo;t specific to just <code>Optional</code> and <code>Result</code>. As Arithmetic Operators deal with Numeric values, Functional Operators operators deal with the transformation of Functions themselves. These concepts are taken from other languages, so they aren&rsquo;t at all specific to Swift.</p>
+
+<p>There&rsquo;s also some new terminologies and another way of describing the interaction of components, this isn&rsquo;t less true of a <a href="https://developer.apple.com/library/ios/documentation/UserExperience/Conceptual/AutolayoutPG/VisualFormatLanguage/VisualFormatLanguage.html">Domain Specific Language</a> that we can graft on top of Objective-C[^objc-dsls] or with a <a href="http://robots.thoughtbot.com/writing-a-domain-specific-language-in-ruby">more flexible language</a>. Sure, Objective-C has the benefit of a preprocessor to graft new features onto the language to and reduce the amount of boiler-plate required<sup id="fnref:11"><a href="#fn:11" rel="footnote">11</a></sup>, but these can become pretty opaque over time.</p>
+
+<p>However, unlike a Domain Specific Language, all of the code used is valid Swift, there is no transformation from a language in one domain, to a syntax that the compiler understands. The Compiler is fully aware of the Types of all of the transformed Functions leaving no room for ambiguity. The chances of a runtime error because of a <a href="http://stackoverflow.com/questions/8561558/objective-c-keyvaluecoding-how-to-avoid-an-exception-with-valueforkeypath">keypath not existing</a> or the type being <a href="http://stackoverflow.com/questions/2455161/unrecognized-selector-sent-to-instance">different to the one expected by the code</a> are greatly diminished.</p>
+
+<p>I honestly believe its worth taking a jump at the conceptual hurdle, whether it is for writing code that is more robust and predictable or to satisfy a curiosity of learning something new.</p>
+
+<p>Thanks for Reading! I suggest reading some other brilliant posts that do a better job than I of laying this all out! As a bonus, the next post will focus on how <code>XMLParsableType</code> can be implemented in a variety of ways.</p>
+
+<hr />
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>Swiftz has a Core library as well as a more full-featured Framework. There&rsquo;s a lot of interesting stuffin the Full library, but just getting started with the Core is a good place to start.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>I&rsquo;m lying, I&rsquo;ve changed the Generic Parameters from <code>VA</code> &amp; <code>VB</code> to <code>A</code> &amp; <code>B</code><a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>They consume a Protocol, abstracting away how the XML Parser is implemented. As the Protocol has an associated type requirement it has to be fulfilled with Generics. Composed behaviours don&rsquo;t pollute the Implementation of the Protocol but still augment the behaviour.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<li id="fn:4">
+<p>When starting out it can be really helpful to do this, it makes inspecting the types of each of the elements in the chain more visible. You can use Alt+Click on the value name to get XCode to print out the inferred type. Its also a good illustration of the power of type inference.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+<li id="fn:5">
+<p>Swift makes strong guarantees about the existance of values, there&rsquo;s no need to check for the existance of values in arguments that are non-optional. In an Objective-C implementation this contract can be enforced with a litany of assertions. If the language and compiler can enforce these guarantees we&rsquo;ve got a huge productivity win on our hands.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
+<li id="fn:6">
+<p>As the functions consume a Protocol with associated type requirements the Protocol type has to be defined as a Generic type. The functions are <a href="http://en.wikipedia.org/wiki/Pure_function">Pure</a> in that they do not consume or modify any Global State, only the arguments are used. The guarantee of the no side-effects cannot be enforced in Swift. In essence the class is a bunch of similar functions that are kind-of-namespaced as Class methods of a <code>final</code> class with no constructor.<a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
+<li id="fn:7">
+<p>And it could be damaging to the codebase. Cocoa Classes could easily become polluted with <code>Result</code> variants of every possible method that could fail and this would continue over time as more classes are required to be parsed. More importantly it is not possible for a General <code>Result</code> returning type to have some of the crucial context surrounding a failure. We want our <code>NSError</code>s to contain the Element within the XML responsible for the failure, an Extension method would lose this context. <em>&lsquo;Failed to interpret &#8216;toilet&rsquo; as an Int&#8217;</em> is preferable to <em>&lsquo;Failed to interpret &#8216;123a&rsquo; as an Int&#8217;</em><a href="#fnref:7" rev="footnote">&#8617;</a></p></li>
+<li id="fn:8">
+<p>&lsquo;Factory Method&rsquo; is probably a better term for this since a &lsquo;Constructor&rsquo; is a term reserved to <code>init</code> methods in Swift. <a href="#fnref:8" rev="footnote">&#8617;</a></p></li>
+<li id="fn:9">
+<p><code>Optional</code> and <code>Result</code> are examples of Functors and Monads. This <a href="http://adit.io/posts/2013-04-17-functors,_applicatives,_and_monads_in_pictures.html">fantastic article</a> covers the operators in a visual way. There&rsquo;s more of these (Monads) than you might first think and its a <a href="http://www.haskell.org/haskellwiki/Monad#Interesting_monads">crucial part of many functional languages</a>.<a href="#fnref:9" rev="footnote">&#8617;</a></p></li>
+<li id="fn:10">
+<p>This happens when any <a href="http://en.wikipedia.org/wiki/Operator_overloading#1980s"><em>&lsquo;new&rsquo;</em></a> language feature comes along. I know I abused blocks when they appeared in Objective-C.<a href="#fnref:10" rev="footnote">&#8617;</a></p></li>
+<li id="fn:11">
+<p>In Objective-C this can be handled with <a href="https://github.com/rentzsch/NSXReturnThrowError">Macros and Early Return</a>, but we can&rsquo;t rewrite/mangle the rules of the language in Swift as we don&rsquo;t have Macros.<a href="#fnref:11" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+</div>
+
+
+<div class="meta">
+	<div class="date">
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-09-11T22:30:00+01:00" pubdate data-updated="true"></time></div>
+	<div class="tags">
+
+
+	<a class='category' href='/blog/categories/backends/'>backends</a>, <a class='category' href='/blog/categories/functional/'>functional</a>, <a class='category' href='/blog/categories/ios/'>ios</a>, <a class='category' href='/blog/categories/objective-c/'>objective-c</a>, <a class='category' href='/blog/categories/parsers/'>parsers</a>, <a class='category' href='/blog/categories/swift/'>swift</a>
+
+
+</div>
+	
+	<div class="comments"><a href="#disqus_thread">Comments</a></div>
+	
+</div>
+</article>
+
+	<div class="share">
+	<div class="addthis_toolbox addthis_default_style ">
+		
+		
+		<a class="addthis_button_tweet"></a>
+		
+		
+		
+	</div>
+	
+</div>
+
+
+
+<section id="comment">
+    <h2 class="title">Comments</h2>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+</section>
+</div>
+	<footer id="footer" class="inner">Copyright &copy; 2014
+
+    Lawrence Lomax
+
+</footer>
+	<script src="/javascripts/slash.js"></script>
+<script src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+	$('.fancybox').fancybox();
+})(jQuery);
+</script> <!-- Delete or comment this line to disable Fancybox -->
+
+
+<script type="text/javascript">
+      var disqus_shortname = 'lawrencelomax';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-functional/';
+        var disqus_url = 'http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-functional/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//go.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+</body>
+</html>
