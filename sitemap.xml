@@ -3,20 +3,26 @@
   
   
   <url>
-    <loc>http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-introduction/</loc>
-    <lastmod>2014-09-11T22:30:00+01:00</lastmod>
+    <loc>http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-libraries/</loc>
+    <lastmod>2014-09-12T22:30:03+01:00</lastmod>
     <priority>0.8</priority>
   </url>
   
   <url>
-    <loc>http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-imperative/</loc>
-    <lastmod>2014-09-11T22:30:00+01:00</lastmod>
+    <loc>http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-functional/</loc>
+    <lastmod>2014-09-12T22:30:02+01:00</lastmod>
     <priority>0.8</priority>
   </url>
   
   <url>
-    <loc>http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-functional/</loc>
-    <lastmod>2014-09-11T22:30:00+01:00</lastmod>
+    <loc>http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-imperative/</loc>
+    <lastmod>2014-09-12T22:30:01+01:00</lastmod>
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-introduction/</loc>
+    <lastmod>2014-09-12T22:30:00+01:00</lastmod>
     <priority>0.8</priority>
   </url>
   
@@ -35,14 +41,14 @@
   
   <url>
     <loc>http://lawrencelomax.github.io/blog/archives/</loc>
-    <lastmod>2014-09-11T22:45:50+01:00</lastmod>
+    <lastmod>2014-09-12T18:31:42+01:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
     <loc>http://lawrencelomax.github.io/</loc>
-    <lastmod>2014-09-11T22:45:50+01:00</lastmod>
+    <lastmod>2014-09-12T18:31:42+01:00</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>

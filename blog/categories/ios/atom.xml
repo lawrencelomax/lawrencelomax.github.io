@@ -4,7 +4,7 @@
   <title><![CDATA[Category: ios | A Singleton is Deallocated]]></title>
   <link href="http://lawrencelomax.github.io/blog/categories/ios/atom.xml" rel="self"/>
   <link href="http://lawrencelomax.github.io/"/>
-  <updated>2014-09-11T22:45:50+01:00</updated>
+  <updated>2014-09-12T18:31:42+01:00</updated>
   <id>http://lawrencelomax.github.io/</id>
   <author>
     <name><![CDATA[Lawrence Lomax]]></name>
@@ -14,271 +14,403 @@
 
   
   <entry>
-    <title type="html"><![CDATA[Swift Parsers - Introduction]]></title>
-    <link href="http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-introduction/"/>
-    <updated>2014-09-11T22:30:00+01:00</updated>
-    <id>http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-introduction</id>
-    <content type="html"><![CDATA[<p>This the first in a series of four posts on Parsing code in Swift. This first post takes a look at what the development landscape for Cocoa, Swift, Objective-C &amp; Parsers.</p>
+    <title type="html"><![CDATA[Swift Parsers - Libraries]]></title>
+    <link href="http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-libraries/"/>
+    <updated>2014-09-12T22:30:03+01:00</updated>
+    <id>http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-libraries</id>
+    <content type="html"><![CDATA[<p>In the previous posts in this series the Parsers have used a hypothetical <code>XMLParsableType</code> Protocol for fetching data from an XML Element. I previously mentioned that there are myriad libraries and methods for parsing an XML document for iOS. All of the code in this article and previous articles <a href="http://github.com/lawrencelomax/XMLParsable">is available on GitHub</a>.</p>
 
-<h3>Introduction</h3>
+<p>In this post we&rsquo;re going to take a look at two things:
+1. How <code>XMLParsableType</code> can be implemented using <code>libxml2</code>.
+2. How the various interfaces of <code>libxml2</code> and abstractions in Swift can result in drastically variant performance.</p>
 
-<p>iOS Development has been a fun ride over the last few years. Frameworks are added and improved and generally speaking follow some common idioms. UIKit is well-trodden ground with significant changes as the level of interactivity and responsiveness of what a mobile experience is moves ever forward. When new API introduced or refined, compatibility issues occur, we fix them, we add delete some code that new API subsumes, we write some new features using the new API.</p>
+<h2>Parser Interfaces</h2>
 
-<p>The Backend of an Application is still a bit of a frontier. With no <code>BackEndKit</code> to provide a unified interface of a Network Connections and the Persistent State of the Application, there are no &lsquo;rails&rsquo; to start on and how a Backend is built can vary enormously from Application-to-Application. A expanding world of Libraries has sprung up to simplify and consolidate the thinking of how back-end components intact in Objective-C. Much of the dynamism and flexibility of the Objective-C runtime as well as preprocessor macros is leveraged in order to kill repetitious code with metaprogramming. Now that a new Programming language has arrived and new <a href="https://developer.apple.com/library/prerelease/ios/documentation/General/Conceptual/ExtensibilityPG/index.html">OS features that all but a modular design </a> the time is now to look at best practice in iOS App Backends.</p>
+<p>The immensely popular Open Source project <a href="http://xmlsoft.org">libxml2</a> is a C Framework bundled with iOS and Mac OS X for parsing XML<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>, with no external dependencies. For our interests it has implementations for a number of <a href="http://en.wikipedia.org/wiki/Java_API_for_XML_Processing">XML Reading interfaces</a>. These are the <a href="http://en.wikipedia.org/wiki/Document_Object_Model">DOM</a>, <a href="http://en.wikipedia.org/wiki/Simple_API_for_XML">SAX</a> and <a href="http://xmlsoft.org/xmlreader.html">Reader</a> interfaces.</p>
 
-<p>There is a lot of concern how Swift can (and can&rsquo;t be used) used with existing ways of getting-stuff-done in Objective-C. WWDC 2014 and the following months have had a ton to learn, so lets review a little of what we know about how working with Swift will effect iOS Development.</p>
+<p>If I were to build these interfaces in an Application I&rsquo;d want to be cautious to not prematurely optimise the XML Document reading process. Even if there are any substantial gains to XML Parsing performance when building implementations of the <code>XMLParsableType</code>, the gains may not be that significant to the Application as a whole. If the implementations were to be made from scratch it would be worth writing one simple implementation and the swapping it with a more performant implementation if-and-when it is seen to be impacting the performance of the Application at large. However, this is a fun exercise to play with Swift and Xcode 6 as well as getting to grips with the <code>libxml2</code> library.</p>
 
-<h3>Cocoa &amp; Swift</h3>
+<h3>DOM</h3>
 
-<p>Swift Interoperability with Cocoa is a mostly known quantity. Objective-C interoperability is deeply ingrained in the language, regardless of the philosophical departures that Swift makes from Objective-C. Cocoa will remain, repeated casting will be inconvenient, Strong Types with the Optional type contract will allow us to reason better about the state of the Application. Smaller components of the Application can be migrated to a Swift world in a piecemeal way without drastically changing the underlying architecture due to the extent of the <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/BuildingCocoaApps/index.html#//apple_ref/doc/uid/TP40014216">interoperability features</a>.</p>
+<p>A <a href="http://en.wikipedia.org/wiki/Document_Object_Model">DOM (Document Object Model) or Tree Interface</a> to XML represents all of the Elements within an XML Document as a tree of connected nodes. This often means that the whole of an XML Document is read into memory and is navigable by following relationships in a data structure. By exposing the XML Document as a fully realized data structure, a DOM Interface very convenient to navigate.</p>
 
-<p>There&rsquo;s a lot of new language features, with a focus on moving up the levels of abstraction<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. Having <a href="http://swifter.natecook.com/type/LazySequence/">Lazy Sequences as part of the Standard Library</a> and setter <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Declarations.html">side-effects as part of the language</a> all show that things are getting a lot more modern.</p>
+<p>By loading all parts of the XML Document into memory the memory usage is proportional to the size of the XML Document. This will be a low cost for small documents, but for larger documents this can result in a substantial amount of memory to allocate<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>.</p>
 
-<p>The compiler is now doing a lot more with type inference can be used to increase code density without sacrificing readability or intent. Functions are types like any other value, people are rejoicing as the syntax of the language can be pared back by removing the need to worry about pointers.</p>
+<p>The performance of a DOM parser relative to others is largely dependent on the number of times that the same DOM is traversed and the amount of ignored data in the DOM. If the DOM is repeatedly traversed, then the up-front cost of building the tree will amortise later navigation of the data structure. However, if there are only a few Elements and Text nodes that need to be extracted from a large document, the resources used to read the unread parts of the tree are wasted.</p>
 
-<h3>Headers &amp; Classes</h3>
+<h3>SAX</h3>
 
-<p>Having headers is fantastic from a documentation point of view, but the evils of duplication makes can make them unwieldy as well as informative. Swift leans on Header generation<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup> and access control to automate the process of generating an Interface from the Implementation itself. Implementation details don&rsquo;t need to be leaked and API stubs don&rsquo;t need to be copy-pasted between <code>.h</code> and <code>.m</code></p>
+<p>As a DOM interface requires that the whole Tree of Elements is in memory an interface to XML exists that streams data out of the document on a per-node basis. The <a href="http://en.wikipedia.org/wiki/Simple_API_for_XML">SAX</a> interface traverses all of the nodes in sequence, allowing data to be extracted from a stream of callbacks. This means that the entirety of the document doesn&rsquo;t have to be in memory in order to read a document. This can be very desirable in resource constrained environments, or when the document to be parsed is very large.</p>
 
-<p>The implementation of both State and Behavior become considerably &lsquo;cheaper&rsquo; to write, re-write and update. Classes require a fraction of the number of characters and lines-of-code to achieve the same results in terms of defining Properties and Methods to their Objective-C brethren<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>. By making the time taken to write and re-write a Class significantly easier, a great deal of the resistance of decomposing Classes into smaller and more testable Units is removed. The Units become smaller and easier to test, revising code becomes easier as part of a virtuous circle.</p>
+<p>Unfortunately, this comes with drawbacks. The immediate concern for this article is that a callback based interface can be inconvenient as it results in temporary state being created for book-keeping purposes. A data-structure approach may be able to store all of the bookkeeping information in local variables and function arguments, resulting in simpler implementations that use the recursion and the call stack instead of allocated data structures.</p>
 
-<h3>Metaprogramming &amp; Dynamism</h3>
+<h3>Reader</h3>
 
-<p>Chief among the concerns with Swift is how we will cope without the dynamism that Objective-C offers. The malleability of the runtime allows for the creation and injection of functions at runtime<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>. Property Mapping libraries and Model Descriptions inspect classes at runtime, defining the interaction of Classes at a much higher level of abstraction. Reducing boiler plate code isn&rsquo;t just about convenience at the current moment in time, it reduces the entropy of the codebase over time.</p>
+<p>The <a href="http://xmlsoft.org/xmlreader.html">Reader Interface</a> is very similar to the SAX interface, with a cursor based way of traversing the tree, rather than callbacks. This can be thought of as the difference between a push and pull driven stream of data. This makes the interface significantly easier to work with than SAX.</p>
 
-<p>However, applying these methods will just not work in Swift. Pure Swift constructs are closed at compile time and cannot be tinkered with at runtime. There is no preprocessor available for code generation before it hits the compile. Safety is king, requiring the code to be totally unambiguous about the semantics of the code if there is insufficient information for the Compiler to reason with. There is no Reflection package or framework for performing the same kind of interactions with Classes at runtime, so this seems like a huge problem.</p>
+<h2>Swift Implementation</h2>
 
-<p>However there are other ways of constructing and building Applications, using Abstractions that seem far away from the Gang-of-Four, Object Oriented Programming and the more dynamic idioms of Objective-C. Functional Programming provides us with abstractions that help us to dispense with the repetition of Imperative programming but without sacrificing safety and predictability. These techniques can be employed without the need to read 42 tutorials about what a Monad is and isn&rsquo;t. Functional Programming has a few fundamental particles, once we learn how they can be applied, the mathematics behind them become a mainly academic exercise that can be ignored if we want to. I&rsquo;ll cover this in the third article in this series.</p>
+<p>With a little context to the types of parsing interfaces that are available in <code>libxml2</code>, it help us to understand how they can be used in Swift. All of the implementations of the interface will return a <a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsable/XML/XMLNavigatingParser.swift#L12"><code>Result&lt;XMLParsableType&gt;</code></a> of the root node in the XML Document, with the XML Document read from either a <a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsable/XML/XMLNavigatingParser.swift#L13">File or an <code>NSData</code> representation of document String</a>.</p>
 
-<h3>Parser Requirements</h3>
+<h3>C Structures in Swift</h3>
 
-<p>Let&rsquo;s take a look at the how we can go about one component within an Application in Swift, Parsing.</p>
+<p><a href="http://xmlsoft.org"><code>libxml2</code></a>  Open Source implementation of is a C library, the C functions can be imported into Swift using an Bridging Header and used as if they are Swift functions with <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/BuildingCocoaApps/InteractingWithCAPIs.html#//apple_ref/doc/uid/TP40014216-CH8-XID_11">usual rules of interacting with C API</a>. As Working with the structures requires quite a bit of unwrapping and manipulating &lsquo;Unsafe&rsquo; containers that wrap all C structures in Swift. Again, a strong reason to move up to the Swift level of abstraction.</p>
 
-<p>I&rsquo;m defining &lsquo;Parsing&rsquo; to be the process of extracting data from <a href="http://en.wikipedia.org/wiki/Comparison_of_data_serialization_formats">Data Serialization format</a> such as XML or JSON, to a native Model structure, valid and usable by the rest of the Application[^monadic-parser]. The Parser itself can have some or all of the following requirements:</p>
+<p>Direct access of C structure members is not permitted in Swift as Swift does not know about the shape of structures. Any access of structure members will need to be wrapped in C/Objective-C functions and imported in the Bridging Header.</p>
 
-<ol>
-<li>Check that a Value exists for a given Key at the current level, or navigate the Data to a deeper level.</li>
-<li>Distinguish between a terminal value in the Data Serialization itself versus the value not existing at all. A <code>null</code> value in a JSON needs to be represented in a distinct way to a value not existing at all.</li>
-<li>Coerced a value in the Serialization format into the type of the value that is expected in the Model.</li>
-<li>Fail early if the the Serialization Format differs in any way from our expectations, without crashing.</li>
-<li>If Parsing failure occurs, five valuable output to make it easier to isolate whether the Parsing code&rsquo;s assumptions about the structure of the data are wrong, or that the structure of the data itself is wrong, or both a wrong.</li>
-<li>Provide defaults, or ways of deterministically deriving defaults for values that are known to be optional in the data structure.</li>
-<li>The interface to the Serialization format&rsquo;s contents should provide a level of abstraction consistent with how it should be used.</li>
-<li>Don&rsquo;t let any external state effect the Parsing unless absolutely necessary. Really, don&rsquo;t.</li>
-<li>Seriously, don&rsquo;t even think about modifying external state. Being able to make a parser concurrent with the rest of the application makes everybody happy.</li>
-<li>It should be easy to Parse serialized data from a variety of sources into the parser. The data may come bundled with the Application, from a HTTP request, or a fixture in a Unit Test.</li>
-<li>Write Unit Tests for all of the boundary conditions, so we can be super-certain that our understanding of the serialization format holds true in the implementation.</li>
-<li>If our Unit Tests don&rsquo;t cover all of the possible conditions in the structure of the format and a new condition is discovered, write a test for to ensure as much of the information about the structure of the data has been captured as possible.</li>
-<li>Don&rsquo;t make the interface for pulling data out of the Serialization more expansive than necessary. If functionality is required that can be expressed in terms of more fundamental extraction functions, define it as a composition of the more fundamental functions.</li>
-</ol>
+<p>For example, this function will extract the <code>content</code> member from a Node:</p>
 
+<pre><code>NSString * LibXMLDOMGetText(xmlNodePtr node)
+{
+    NSCParameterAssert(node != NULL);
+    NSCParameterAssert(node-&gt;type == XML_TEXT_NODE);
 
-<p>This is not an exhaustive list of requirements and it has already exhausted you and I. Admittedly, some of these requirements are true of Software Development generally, but it is always worth thinking about.</p>
+    const char *name = (const char *) node-&gt;content;
+    NSCParameterAssert(name != NULL);
 
-<p>In Objective-C, Parsing can be a minefield of typing and branching. I don&rsquo;t think I&rsquo;d be going out on a limb to say that it is one of the most fragile parts of most codebases. Because of its fragility, if an Objective-C Application has any Unit Tests whatsoever, the Parsing components will have the best coverage. This is a big driving force behind Libraries such as the brilliant <a href="https://github.com/mantle/mantle">Mantle</a></p>
-
-<p>Regardless of the awesomeness of an Objective-C library for parsing data, it won&rsquo;t ever be possible to inspect the expected type of the destination property in the Model at runtime and thereby avoid issues with Model Objects having values of the wrong type assigned<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>. Not only that but Objective-C doesn&rsquo;t fail-fast if an Object assigned an Object of a class differs from the expected class that the assignee Object expects<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup>. This leads to explosions that occurs far away from the original erroneous assignment<sup id="fnref:7"><a href="#fn:7" rel="footnote">7</a></sup>.</p>
-
-<p>However, it would appear that the situation is even worse for Swift. Without much in the way of metaprogramming or some runtime magic it looks like the process of parsing will be incredibly repetitive and laborious.</p>
-
-<h3>XML</h3>
-
-<p>XML is an interesting serialization format because it isn’t JSON. It&rsquo;s a format that we like to chuckle about and deride because of the complexity, but the reality is there are many APIs that Applications need to connect to that use XML. I think that many of the problems that we have with parsing XML comes from the fact that the abstractions we use to extract data from XML aren&rsquo;t that great. Handling all of the failure points in Parsing is a hard task and that&rsquo;s why we want to automate it with metaprogramming and make it bulletproof with Unit Tests.</p>
-
-<p>XML is also format because there is a good amount of variety in the ways that we model an XML document and its content in API<sup id="fnref:8"><a href="#fn:8" rel="footnote">8</a></sup>. Typically JSON is just extracted into the native Array, Dictionary, String &amp; Numeric types of the targeted programming language. XML grew in popularity at a time when system resources like available memory were at much more of a premium than they are today. Constraints like this tend to drive innovation in a few directions, which make the process of parsing a little bit more interesting that pulling values out of a language-native Dictionary object.</p>
-
-<p>If you aren&rsquo;t a crazy person like me you&rsquo;ll probably stick a Webservice in front of whatever else you need to consume and do all the complex data processing on a Server<sup id="fnref:9"><a href="#fn:9" rel="footnote">9</a></sup>, then spit everything out in a RESTful JSON service that normalizes any intricacies and madness in the original data. However the reality isn&rsquo;t always so ideal and its up to the Client Software to process data from a variety of Sources and Serialization Formats.</p>
-
-<h3>Next Time&hellip;</h3>
-
-<p>In the <a href="/blog/2014/09/11/swift-parsers-imperative/">next post</a>, I&rsquo;ll be a crazy person and create a simple XML interface in Swift, and extract data out of it in an Imperative style.</p>
-<div class="footnotes">
-<hr/>
-<ol>
-<li id="fn:1">
-<p>The inevitable is happening in iOS Land; Higher Levels of Abstraction as device performance increases, Frameworks and specialized languages for performance critical code. On iOS this is the availability of Accelerate and Metal. The amount of C &amp; C++ in iOS Development may diminish, but I don&rsquo;t see it going away within the next decade.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
-<li id="fn:2">
-<p>This can be seen in any imported Frameworks, whether they are provided by the User, a 3rd Party, or Apple. Just CMD+Click on a third party Class in Xcode and it will take you to the Class or Method definition.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
-<li id="fn:3">
-<p>This means we&rsquo;ll all write better method documentation right?<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
-<li id="fn:4">
-<p>A lot of the malleability of the Objective-C runtime has allowed to be built on top of it in the first place!<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-<li id="fn:5">
-<p>It is possible to do this by attatching data about Classes of the properties of a Class, manually or automatically (this is part of the role of <a href="https://developer.apple.com/library/mac/documentation/Cocoa/reference/CoreDataFramework/Classes/nsManagedobjectModel_Class/Reference/Reference.html">NSManagedObjectModel</a>). However, this isn&rsquo;t the same thing as being able to know what the Class of an <code>@property</code> is from the Objective-C runtime.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
-<li id="fn:6">
-<p>I think my Pro Strong-Typing-bias is showing. I&rsquo;m just describing one of the disadvantages of a weak type system, when there are also benefits.<a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
-<li id="fn:7">
-<p>The contracts of assignment can be a good deal stronger with liberal use of assertions like <code>NSParameterAssert</code>.<a href="#fnref:7" rev="footnote">&#8617;</a></p></li>
-<li id="fn:8">
-<p>This is covered in more detail in the <a href="">fourth in this series</a>.<a href="#fnref:8" rev="footnote">&#8617;</a></p></li>
-<li id="fn:9">
-<p>You&rsquo;ll also have your pick of languages on the server, so you can use a language &amp; framework that works well in this domain. Either way the Client App will have to consume data at some point and the App should be fault-tolerant enough that it doesn&rsquo;t fall over if there&rsquo;s a hiccup on the server.<a href="#fnref:9" rev="footnote">&#8617;</a></p></li>
-</ol>
-</div>
-
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Swift Parsers - Imperative]]></title>
-    <link href="http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-imperative/"/>
-    <updated>2014-09-11T22:30:00+01:00</updated>
-    <id>http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-imperative</id>
-    <content type="html"><![CDATA[<p>In the <a href="/blog/2014/09/11/swift-parsers-introduction/">previous post</a> I talked about some of the possible requirements for a Parser that extracts data from a Serialization Format and places it in a Language-Native Model. In this post I&rsquo;ll cover how an XML Parser for a Model Object can be built using some of the familiar Imperative features of Swift.</p>
-
-<h3>Model and XML</h3>
-
-<p>Let&rsquo;s define a hypothetical XML that we wish to parse:</p>
-
-<pre><code>&lt;zoo&gt;
-    &lt;animals&gt;
-        &lt;animal&gt;
-            &lt;type&gt;cat&lt;/type&gt;
-            &lt;name&gt;grumpy&lt;/name&gt;
-            &lt;url&gt;http://en.wikipedia.org/wiki/Grumpy_Cat&lt;/url&gt;
-        &lt;/animal&gt;
-        &lt;animal&gt;
-            &lt;type&gt;cat&lt;/type&gt;
-            &lt;name&gt;long&lt;/name&gt;
-            &lt;url&gt;http://knowyourmeme.com/memes/longcat&lt;/url&gt;
-        &lt;/animal&gt;
-        &lt;animal&gt;
-            &lt;type&gt;dog&lt;/type&gt;
-            &lt;name&gt;i have no idea what i'm doing&lt;/name&gt;
-            &lt;url&gt;http://knowyourmeme.com/memes/i-have-no-idea-what-im-doing&lt;/url&gt;
-        &lt;/animal&gt;
-    &lt;/animal&gt;
-    &lt;facilities&gt;
-        &lt;toilet&gt;42&lt;/toilet&gt;
-        &lt;disabled_parking&gt;true&lt;/disabled_parking&gt;
-        &lt;a_random_assortment_of_characters&gt;sdfdf821n9sfa&lt;/a_random_assortment_of_characters&gt;
-        &lt;seriously&gt;
-            &lt;crazy_nested&gt;
-                &lt;drainage&gt;Good&lt;/drainage&gt;
-            &lt;/crazy_nested&gt;
-        &lt;/seriously&gt;
-    &lt;/facilities&gt;
-&lt;/zoo&gt;
-</code></pre>
-
-<p>The Model includes the parts of the XML that our Application cares about and ignores others:</p>
-
-<pre><code>public struct Animal {
-  let type: String
-  let name: String
-  let url: NSURL
-}
-
-public struct Zoo {
-  let toiletCount: Int
-  let disabledParking: Bool
-  let drainage: String
-  let animals: [Animal]
- }
-</code></pre>
-
-<p>This is simple and immutable, the Parser forms part of the backend for the User Interface to consume. There&rsquo;s no reason for the User Interface to be able to manipulate these Models directly.</p>
-
-<h3>An Interface to XML</h3>
-
-<p>Stubbing a Protocol or Interface is a great way of getting to grips with the problem that needs to be solved. It also helps to determine what is necessary for to implement, as well as the details that can be ignored to solve the problem at hand. There is also a bunch of <a href="">previously laid out requirements to be considered</a></p>
-
-<p>In parsing this XML<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. I&rsquo;ve made a few assumptions:</p>
-
-<ol>
-<li>I care about the data contained in Text Nodes.</li>
-<li>I need to be able to recursively address Elements within a Tree-like structure.</li>
-<li>I need to be able to enumerate Elements of the same name at the same level in the tree.</li>
-<li>I don&rsquo;t care about anything else (namespaces, attributes, schemas).</li>
-</ol>
-
-
-<p>With those assumptions in mind, a Protocol for defining how data can be extracted from a Parsable XML Node can be made:</p>
-
-<pre><code>public protocol XMLParsableType {
-  func parseChildren(childTag: String) -&gt; [Self]
-  func parseText() -&gt; String?
+    return [NSString stringWithCString:name encoding:NSUTF8StringEncoding];
 }
 </code></pre>
 
-<p><em>&ldquo;That&rsquo;s It?&rdquo;</em>. Yep. Everything else can be composed on top of this minimal protocol; more complex data extraction functions can be built on top of these fundamentals. It&rsquo;s easy to define the responsibility of this Protocol in one sentence:</p>
+<p>These functions can then be used in Swift when they are exposed in an <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/BuildingCocoaApps/MixandMatch.html">Umbrella or Bridging Header</a>.</p>
 
-<blockquote><p><em>&ldquo;An XML Parsable has an ordered collection of Child Parsables and may have an associated String of Text&rdquo;</em></p></blockquote>
+<h3>GOTO Swift</h3>
 
-<p>Protocols are permitted to have a recursive definition, using the <code>Self</code> placeholder type. How and where the underlying XML document is stored is left to the implementing class/struct/enum<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. As we will see in <a href="">Part 4</a>, obtaining a child may be implemented by traversing a fully reified data structure, or moving a cursor partially visible representation of the structure.</p>
+<p>I like to follow a principle when developing software, regardless of the languages and frameworks used:</p>
 
-<p>As well as a representation of the Data Serialization itself, there needs to be a consistent way of defining that a Model can extract out values of Data Serialization. The entry point can be defined in terms of a decode protocol<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup> that the Model structures should implement:</p>
+<blockquote><p><em>&ldquo;Get to the highest level of Abstraction that makes sense, as early as possible. Don&rsquo;t think about the overhead of the abstraction until you can prove that it is detrimental to performance&rdquo;</em></p></blockquote>
 
-<pre><code>public protocol XMLDecoderType {
-  class func decode&lt;X: XMLParsableType&gt;(xml: X) -&gt; Result&lt;Self&gt;
+<p><code>libxml2</code> sits very far down the ladder of Abstraction, so I consider it to be ideal to pull data from <code>libxml2</code> into a higher level of abstraction as soon as possible. This makes manipulating and reading XML data in Swift significantly easier. Additionally, this means skipping Objective-C<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup> and using elements of the <a href="http://swifter.natecook.com">Swift Standard Library</a> along with bridged Cocoa libraries to get stuff done. Swift provides us with some abstractions that are superior to the Objective-C equivalents, there&rsquo;s no need for an intermediate stage unless it is needed. The Strong guarantees that Swift provides us are also present in the components of the Standard Library.</p>
+
+<p>Conveniently, Xcode will parse headers with enumerations declared with the <code>NS_ENUM</code> macro:</p>
+
+<pre><code>typedef NS_ENUM(NSInteger, LibXMLReaderType) {
+    LibXMLReaderTypeNONE = XML_READER_TYPE_NONE,
+    LibXMLReaderTypeELEMENT = XML_READER_TYPE_ELEMENT,
+    LibXMLReaderTypeATTRIBUTE = XML_READER_TYPE_ATTRIBUTE,
+    LibXMLReaderTypeTEXT = XML_READER_TYPE_TEXT,
+    LibXMLReaderTypeCDATA = XML_READER_TYPE_CDATA,
+    LibXMLReaderTypeENTITY_REFERENCE = XML_READER_TYPE_ENTITY_REFERENCE,
+    LibXMLReaderTypeENTITY = XML_READER_TYPE_ENTITY,
+    LibXMLReaderTypePROCESSING_INSTRUCTION = XML_READER_TYPE_PROCESSING_INSTRUCTION,
+    LibXMLReaderTypeCOMMENT = XML_READER_TYPE_COMMENT,
+    LibXMLReaderTypeDOCUMENT = XML_READER_TYPE_DOCUMENT,
+    LibXMLReaderTypeDOCUMENT_TYPE = XML_READER_TYPE_DOCUMENT_TYPE,
+    LibXMLReaderTypeDOCUMENT_FRAGMENT = XML_READER_TYPE_DOCUMENT_FRAGMENT,
+    LibXMLReaderTypeNOTATION = XML_READER_TYPE_NOTATION,
+    LibXMLReaderTypeWHITESPACE = XML_READER_TYPE_WHITESPACE,
+    LibXMLReaderTypeSIGNIFICANT_WHITESPACE = XML_READER_TYPE_SIGNIFICANT_WHITESPACE,
+    LibXMLReaderTypeEND_ELEMENT = XML_READER_TYPE_END_ELEMENT,
+    LibXMLReaderTypeEND_ENTITY = XML_READER_TYPE_END_ENTITY,
+    LibXMLReaderTypeXML_DECLARATION = XML_READER_TYPE_XML_DECLARATION
+};
+</code></pre>
+
+<p>This is a redeclaration of libxml enum types, with a naming convention that works well in Swift:</p>
+
+<pre><code>switch LibXMLDOMGetElementType(child) {
+case .ELEMENT_NODE:
+    children.append(LibXMLNodeParserDOM.createTreeRecursive(child))
+case .TEXT_NODE:
+    text = LibXMLDOMGetText(child)
+default:
+    break
 }
 </code></pre>
 
-<p>This function will be where the action is and can be implemented in the Model type definitions themselves or separately as Extensions. As <code>XMLParsableType</code> has a <code>Self</code> requirement, the usage of an <code>XMLParsableType</code> protocol needs to be <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Generics.html#//apple_ref/doc/uid/TP40014097-CH26-XID_286">satisfied with Generics</a>.</p>
+<p>Swift provides the <a href="http://swifter.natecook.com/protocol/SequenceType/"><code>SequenceType</code></a> and <a href="http://swifter.natecook.com/protocol/GeneratorType/"><code>GeneratorType</code></a> protocols to allow us to use the <code>for ... in ...</code> syntax, or use the higher-level <a href="http://swifter.natecook.com/func/map/"><code>map</code></a>, <a href="http://swifter.natecook.com/func/find/"><code>find</code></a> and <a href="http://swifter.natecook.com/func/filter/"><code>filter</code></a> functions. We can define a <code>Sequence</code> type that exposes the Child nodes of an XML Node:</p>
 
-<h3>Surfacing Failure</h3>
+<pre><code>typealias LibXMLDOMNodeSequence = SequenceOf&lt;xmlNodePtr&gt;
 
-<p>In the interface for <code>XMLParsableType</code>, failure is indicated with the return of <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/TheBasics.html#//apple_ref/doc/uid/TP40014097-CH5-XID_483">the <code>None</code> case of the <code>Optional</code> enum</a>. An <code>Optional</code> surrounds the value with a <a href="http://adit.io/posts/2013-04-17-functors,_applicatives,_and_monads_in_pictures.html">Context describing the availability of the value</a>. The absence of a value in a <code>XMLParsableType</code> indicates some kind of failure, but without any information about how the Error came about.</p>
-
-<p>Some Cocoa APIs use <code>nil</code> as the return value represent failure<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup> alone, but idiomatic Cocoa will also include a by-reference <code>NSError</code> to return Error Information in the event of failure. Exceptions are being <a href="https://twitter.com/atnan/status/506832064633901056">weeded out of Cocoa API</a> for all but programmer error. <code>NSError</code> has the an associated <a href="https://developer.apple.com/library/mac/documentation/Cocoa/Reference/Foundation/Classes/NSError_Class/Reference/Reference.html#//apple_ref/occ/instm/NSError/domain">&ldquo;Error Domain&rdquo;</a> as well as <a href="https://developer.apple.com/library/mac/documentation/Cocoa/Reference/Foundation/Classes/NSError_Class/Reference/Reference.html#//apple_ref/doc/uid/20001704-CJBIAHGF"><code>String</code> Description</a> of the cause of the failure. This can be massively helpful as finding the code or resource that is responsible is a nightmare if the only information is &ldquo;a problem occurred somewhere&rdquo;. For example the <code>NSJSONSerialization</code> API will give the line-number of a syntax error in a JSON resource.</p>
-
-<p>Moving to a Safe Swift world, return of an <code>NSError</code> and a possible value can be encapsulated in the same value using an <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Enumerations.html#//apple_ref/doc/uid/TP40014097-CH12-XID_227">Enumeration with Associated Values</a>, rather <a href="https://www.google.co.uk/search?client=safari&amp;rls=en&amp;q=nserror+dereference+pointer&amp;ie=UTF-8&amp;oe=UTF-8&amp;gfe_rd=cr&amp;ei=3MEOVNesH4G28AOjw4D4Bw#rls=en&amp;q=nserror+dereference+pointer">dereferencing pointers</a>. This is the <code>Result</code> with the same availability semantics as an <code>Optional</code>, with additional failure information provided with an <code>NSError</code> in the failure case:</p>
-
-<pre><code>public enum Result&lt;V&gt; {
-  case Error(NSError)
-  case Value(Box&lt;V&gt;)
-}
-</code></pre>
-
-<p>As there are potentially many sources of failure in the <code>decode</code> method, it is handy to write a Helper Method that can &ldquo;promote&rdquo; an <code>Optional</code> to a <code>Result</code> with an Error if the Optional does not contain a value. This will populate the <code>NSError</code> with a default Error Domain and attach a User Defined message:</p>
-
-<pre><code>public func promoteDecodeError&lt;V&gt;(message: String)(value: V?) -&gt; Result&lt;V&gt;
-</code></pre>
-
-<h3>An Imperative Approach</h3>
-
-<p>From the previous post, I mentioned that the lack a dynamic runtime in Swift will mean that bringing over some Objective-C programming techniques will be impossible. As a Swift Parser won&rsquo;t be able to use these techniques, a more traditional approach to parsing will have to be used<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>.</p>
-
-<p>Failing-Fast was outlined as a potential feature of a Parser in the previous post, the implementation of an XML-to-Animal decoding function will need to take this into account. The following Imperative approach shows how it may be possible to extract a <code>Result&lt;Animal&gt;</code> from an <code>XMLParsableType</code>:</p>
-
-<pre><code>  static func decode&lt;X: XMLParsableType&gt;(xml: X) -&gt; Result&lt;Animal&gt; {
-    if let type = XMLParser.parseChildText("type")(xml: xml).toOptional() {
-      if let name = XMLParser.parseChildText("name")(xml: xml).toOptional() {
-        if let urlString = XMLParser.parseChildText("url")(xml: xml).toOptional() {
-          return Result.value(self(type: type, name: name, url: NSURL.URLWithString(urlString)) )
+internal class func childrenOfNode(node: xmlNodePtr) -&gt; LibXMLDOMNodeSequence {
+    var nextNode = LibXMLDOMGetChildren(node)
+    let generator: GeneratorOf&lt;xmlNodePtr&gt; = GeneratorOf {
+        if (nextNode == nil) {
+            return nil
         }
-        return Result.Error(decodeError("Could not parse 'urlString' as a String"))
-      }
-      return Result.Error(decodeError("Could not parse 'name' as a String"))
+
+        let currentNode = nextNode
+        nextNode = LibXMLDOMGetSibling(nextNode) 
+        return currentNode
     }
-    return Result.Error(decodeError("Could not parse 'type' as a String"))
-  }
+
+    return SequenceOf(generator)
+}
 </code></pre>
 
-<p>This doesn&rsquo;t look great. The nesting is terrible, the Failure and Success conditions are separated around the conditional. In this case, there are only three values, a Model with more properties would make the nesting significantly worse. In Objective-C this can be better tackled by returning early on failure, however this would require lots of force unwrapping<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup>. Conditional Statements are required as Failure when one of the values is missing is a requirement of our Model and is guaranteed to exist in the XML.</p>
+<p>By moving enumeration to a  <code>Sequence</code> type, consumers of the DOM don&rsquo;t need to be concerned with how the list of Child Nodes is navigated.</p>
 
-<p>Despite these problems, there are some patterns are emerging. Firstly, it looks like extracting the Text from a Child is a common enough task that can be converted to a function in its own right. Obtaining a Child&rsquo;s Child&rsquo;s looks like an interesting area for some more meaningful functions. Optional Chaining is being used to avoid further conditionals.</p>
+<h2>Implementation 1: Swift Structure from libxml2 DOM</h2>
 
-<p>Most importantly is that the nesting is an Imperative way of implementing that the successful condition for this function is dependent on the availability of three values in the XML. Moving our understanding of the pattern from an Imperative model to a Declarative model will be crucial to building a better way of constructing a <code>decode</code> function.</p>
+<p>The first thing that springs to mind is that given a DOM in <code>libxml</code>, some of the data can be pulled out into a pure Swift data structure<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>. This Swift data structure will contain all of the relationships and Text Nodes, whilst implementing the previously defined <code>XMLParsableType</code>.</p>
 
-<h3>Next Time&hellip;</h3>
+<pre><code>public struct XMLNode: XMLParsableType {
+    public let name: String
+    public let text: String?
+    public let children: [XMLNode]
 
-<p><a href="/blog/2014/09/11/swift-parsers-functional/">Next time</a>, we&rsquo;ll take a Functional approach to the <code>decode</code> method, allowing us to think at a much higher level about how a Model is built.</p>
+    public func parseChildren(elementName: String) -&gt; [XMLNode] {
+        return self.children.filter { node in
+            return node.name == elementName
+        }
+    }
+
+    public func parseText() -&gt; String? {
+        return self.text
+    }
+}
+</code></pre>
+
+<p>The <code>childrenOfNode</code> function is placed in the <code>LibXMLDOM</code> class to separate the concerns of how the Tree is built into a data structure and how the DOM is navigated. By using this function that returns a  <code>Sequence`` and a number of other wrapper functions (prefixed with</code>LibXMLDOM&#8220;`) returning Swift types, the construction of the tree can be defined recursively:</p>
+
+<pre><code>private class func createTreeRecursive(node: xmlNodePtr) -&gt; XMLNode {
+    let name: String! = LibXMLDOMGetName(node)
+    var text: String?
+
+    var children: [XMLNode] = []
+
+    for child in LibXMLDOM.childrenOfNode(node) {
+      switch LibXMLDOMGetElementType(child) {
+      case .ELEMENT_NODE:
+        children.append(LibXMLNodeParserDOM.createTreeRecursive(child))
+      case .TEXT_NODE:
+        text = LibXMLDOMGetText(child)
+      default:
+        break
+      }
+    }
+
+    return XMLNode(name: name, text: text, children: children)
+}
+</code></pre>
+
+<p>That&rsquo;s pretty much it, there&rsquo;s a little more in terms of plumbing and error handling, but its not too hard to take an XML Document from <code>libxml2</code> and get the data into Swift.</p>
+
+<h2>Implementation 2: Swift Structure from libxml2 Buffered Reader</h2>
+
+<p>Looking at the first this means that the XML Document is built twice. Once to read the document into <code>libxml2</code> and the second to extract out the Text Nodes and Element Names into a Tree of Swift data structures. The costs of allocating a bunch of Swift structures and objects could be significant so there will likely be a performance benefit to only building the tree once.</p>
+
+<p><a href="http://xmlsoft.org/xmlreader.html">The Reader interface for <code>libxml2</code></a> is an interface to the XML document that will incrementally read each component of the document in a depth-first fashion. The Current Node is repeatedly advanced by calling the <a href="http://xmlsoft.org/html/libxml-xmlreader.html#xmlTextReaderRead"><code>xmlTextReaderRead</code></a> function until the end of the file has been reached, or an Error has occurred in parsing. Using the Reader, a Swift Data structure can be built without having to create a DOM in <code>libxml2</code>. It is possible however, that the overhead associated by advancing through the <code>Reader</code> buffer could be greater than the cost of allocating the DOM in <code>libxml2</code></p>
+
+<p>A Lazy <code>Sequence</code> of nodes can be made for the <a href="http://xmlsoft.org/xmlreader.html">Reader interface</a> in the same way as the <a href="http://xmlsoft.org/html/libxml-tree.html">Tree interface</a>. The <code>Sequence</code> is made from the more fundamental <code>Generator</code>:</p>
+
+<pre><code>internal typealias ReaderGenerator = GeneratorOf&lt;(xmlTextReaderPtr, LibXMLReaderMode)&gt;
+
+private class func makeRecursiveGenerator(reader: xmlTextReaderPtr) -&gt; ReaderGenerator {
+    return GeneratorOf {
+        if reader == nil {
+            return nil
+        }
+
+        let result = LibXMLReaderMode.forceMake(xmlTextReaderRead(reader))
+        switch result {
+        case .CLOSED: return nil
+        case .EOF: return nil
+        case .ERROR: return nil
+        case .INITIAL: return nil
+        default: return (reader, result)
+        }
+    }
+}
+</code></pre>
+
+<p>With the Reader approach, an error can occur at any time and therefore needs to be handled during the reading process. This is passed back in a tuple of both the pointer to the current node and the status of the read operation. It is then wrapped in a Sequence for the Higher-Order operations and the pointer must be advanced one time on the first read:</p>
+
+<pre><code>internal typealias ReaderSequence = SequenceOf&lt;(xmlTextReaderPtr, LibXMLReaderMode)&gt;
+private class func wrapInSequence(reader: xmlTextReaderPtr) -&gt; Result&lt;ReaderSequence&gt; {
+    if (reader == nil) {
+        return Result.Error(self.error("Could Not Parse Document, no root node"))
+    }
+
+    var generator = LibXMLReader.makeRecursiveGenerator(reader)
+    if generator.next() == nil {
+        xmlFreeTextReader(reader)
+        return Result.Error(self.error("Could Not Parse Document, no first node"))
+    }
+
+    return Result.value(SequenceOf(generator))
+}
+</code></pre>
+
+<p>In the <code>LibXMLReader</code> class, a <code>Context</code> class is created to dispose the manually memory managed <code>libxml</code> structures:</p>
+
+<pre><code>internal final class LibXMLReader {
+    internal struct Context {
+        let reader: xmlTextReaderPtr
+        let sequence: ReaderSequence
+        var hasFreed: Bool
+
+        init (reader: xmlTextReaderPtr, sequence: ReaderSequence) {
+            self.reader = reader
+            self.sequence = sequence
+            self.hasFreed = false
+        }
+
+        func dispose() {
+            if !self.hasFreed {
+                xmlFreeTextReader(self.reader)
+            }
+        }
+}
+</code></pre>
+
+<p>The Tree can be built up using a Recursive function, passing through the <code>ReaderSequence</code></p>
+
+<pre><code>private class func parseRecursive(reader: xmlTextReaderPtr, _ sequence: ReaderSequence) -&gt; Result&lt;XMLNode&gt; {
+    if LibXMLReaderType.forceMake(reader) != .ELEMENT {
+        let realType = LibXMLReaderGetElementTypeString(LibXMLReaderType.forceMake(reader))
+        return Result.Error(LibXMLReader.error("Recursive Node Parse Requires an ELEMENT, got \(realType)"))
+    }
+
+    var name = LibXMLReaderGetName(reader)
+    var text: String?
+    var children: [XMLNode] = []
+
+    if LibXMLReaderIsEmpty(reader) {
+        return Result.value(XMLNode(name: name, text: text, children: children))
+    }
+
+    for (reader, mode) in sequence {
+        let type = LibXMLReaderType.forceMake(xmlTextReaderNodeType(reader))
+        let typeString = LibXMLReaderGetElementTypeString(type)
+        let modeString = LibXMLReaderGetReaderMode(mode)
+
+        switch type {
+            case .TEXT:
+                text = LibXMLReaderGetText(reader);
+            case .ELEMENT:
+                let childResult = self.parseRecursive(reader, sequence)
+                switch childResult {
+                    case .Error(let error): return childResult
+                    case .Value(let box): children.append(childResult.toOptional()!)
+                }
+            case .END_ELEMENT:
+                assert(name == LibXMLReaderGetName(reader), "BEGIN AND END NOT MATCHED")
+                return Result.value(XMLNode(name: name, text: text, children: children))
+            default:
+                break
+        }
+    }
+
+    return Result.Error(LibXMLReader.error("I don't know how this became exhausted, unbalanced begin and end of document"))
+}
+</code></pre>
+
+<p>There&rsquo;s a little more in terms of book-keeping as the End and the Beginning of a nested element need to be matched up, but it should look very similar to the DOM based approach.</p>
+
+<h2>Implementation 3: Navigate the libxml2 DOM with Swift</h2>
+
+<p>The Building of the tree as a fully realized Swift data structure is a simple implementation and all the work is done up front, but it certainly isn&rsquo;t the least resource intensive. In the previous implementation <code>String</code>s for the Text and Element Name of an XML Element are created regardless of whether they are used or not. Even if the use of the <code>Reader</code> interface results in a faster implementation than the dual-tree interface of the first Implementation, redundancy in data that is read could mean a lot of wasted effort.</p>
+
+<p>There&rsquo;s no reason that we can&rsquo;t just wrap a whole <code>libxml2</code> Tree structure in a Class implementing <code>XMLParsableType</code> that knows how to fetch the Text and Children of an Element from a current Node Pointer:</p>
+
+<pre><code>public final class LibXMLNavigatingParserDOM: XMLNavigatingParserType, XMLParsableType {
+    private let node: xmlNodePtr
+    private let context: LibXMLDOM.Context?
+
+    internal init (node: xmlNodePtr) {
+        self.node = node
+    }
+
+    internal init (context: LibXMLDOM.Context) {
+        self.context = context
+        self.node = context.rootNode
+    }
+
+    deinit {
+        self.context?.dispose()
+    }
+
+    public func parseChildren(childTag: String) -&gt; [LibXMLNavigatingParserDOM] {
+        let foundChildren = filter(LibXMLDOM.childrenOfNode(self.node)) { node in
+            LibXMLDOMGetElementType(node) == LibXMLElementType.ELEMENT_NODE &amp;&amp; LibXMLDOMElementNameEquals(node, childTag)
+        }
+        return foundChildren.map { LibXMLNavigatingParserDOM(node: $0) }
+    }
+
+    public func parseText() -&gt; String? {
+        let foundChild = findSeq(LibXMLDOM.childrenOfNode(self.node)) { node in
+            return LibXMLDOMGetElementType(node) == LibXMLElementType.TEXT_NODE
+        }
+        return foundChild &gt;&gt;- LibXMLDOMGetText
+    }
+}
+</code></pre>
+
+<p>The <code>LibXMLDOM.Context</code> is just a internal class responsible for cleaning up the manual-memory-managed <code>libxml2</code> DOM document when the root node is deallocated:</p>
+
+<pre><code>internal final class LibXMLDOM {
+    struct Context {
+        let document: xmlDocPtr
+        let rootNode: xmlNodePtr
+
+        init (document: xmlDocPtr, rootNode: xmlNodePtr){
+            self.document = document
+            self.rootNode = rootNode
+        }
+
+        func dispose() {
+            if self.rootNode != nil {
+                xmlFreeDoc(self.document)
+            }
+        }
+    }
+}
+</code></pre>
+
+<p>Still very simple and that&rsquo;s about all that is required to implement <code>XMLParsableType</code> protocol. The creation of the Swift <code>String</code>s for the Text of an Element are deferred until they are actually needed.</p>
+
+<h2>Implementation 4: Navigate with a Reader</h2>
+
+<p>In Implementation 2, a <code>Reader</code> was used to navigate the XML Document and extract all of the Elements and Text Nodes as a Swift Data structure. Instead of building a <code>Swift</code> data structure, it should be possible to extract out Text from <code>Reader</code> without needing a secondary data structure at all. This should work well in circumstances where the amount of data extracted from the whole document is minimal.</p>
+
+<p>This will result in a substantially different implementation to the previous three and will be worth implementing at a later date. It is currently unimplemented in the <a href="http://github.com/lawrencelomax/XMLParsable"><code>XMLParsable</code></a> project.</p>
+
+<h2>Testing</h2>
+
+<p>One of the great aspects of building an XML Parser in this way is that the implementations are trivial to swap out and can be tested against for correctness against the same Parsing Code. Additionally, we can use the new Performance Testing features of Xcode 6 to see how the performance varies in these differing implementations. The code is all available on <a href="http://github.com/lawrencelomax/XMLParsable">GitHub for your viewing pleasure</a>.</p>
+
+<p>The correctness testing is relatively simple, just run the same suite of tests over a fixed XML resource and verify that all of the properties in the Model are set to the values in the resource.</p>
+
+<p><img class="right" src="/images/posts/swift_parsers/unit_results.png" title="&ldquo;Unit Test Results: Great Success&rdquo; &ldquo;Unit Test Results: Great Success&rdquo;" ></p>
+
+<p>Xcode 6 makes performance testing easy too. The same XML parse to Model decode task can be stuck inside a <a href="https://developer.apple.com/library/prerelease/ios/documentation/DeveloperTools/Conceptual/testing_with_xcode/testing_3_writing_test_classes/testing_3_writing_test_classes.html#//apple_ref/doc/uid/TP40014132-CH4-SW8">measurement block</a> and repeated a number of times to eliminate any performance fluctuations of the test host. The Performance Tests should be designed in such a way that they can expose some the performance characteristics of each implementation with a different data set. One of these characteristics is that the amount of unused or redundant data in a document can massively impact performance.</p>
+
+<p>The small suite of performance tests in <a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsableTests/Performance/XMLPerformanceTests.swift"><code>XMLParsable</code></a> test the same source data on each of the implementations on a number of axis, using <a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsableTests/Fixtures/Fixtures.swift#L25"><code>NSData</code></a> vs. <a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsableTests/Fixtures/Fixtures.swift#L21">using Files</a> and a <a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsableTests/Fixtures/zoo.xml">small XML file</a> vs. an <a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsableTests/Fixtures/zoo_highredundancy.xml">XML file with a lot of redundant data</a>:</p>
+
+<p><img class="right" src="/images/posts/swift_parsers/performance_results.png" title="&ldquo;Performance Results&rdquo; &ldquo;Performance Results&rdquo;" ></p>
+
+<p>Some observations from the results:</p>
+
+<ul>
+<li>There isn&rsquo;t a huge difference between <code>NSData</code> and reading from a file. This suggests that File I/O isn&rsquo;t much of a bottleneck. There won&rsquo;t be any noticeable difference between decoding XML from a File, or from <code>NSData</code> returned from a HTTP request.</li>
+<li>When a small XML document is used, there&rsquo;s not much of a performance difference between all of the implementations. There may be some other bottlenecks worth identifying in the system, but the time taken to run 10 iterations is very small.</li>
+<li>The two implementations that build a Tree of Nodes in Swift have order-of-magnitude worse performance than the DOM-wrapper in the XML document with lots of redundant data. This highlights the differences in performance between building a pure Swift data structure and keeping the data in <code>libxml</code> itself. This doesn&rsquo;t make Swift slow by any means, it just highlights the tradeoff of abstractions &amp; safety against raw performance. Moving pointers around a region of purpose-allocated memory will always be faster than a runtime that checks types, reference counts and dereferences pointers across discretely allocated data structures.</li>
+</ul>
+
+
+<h2>Conclusion</h2>
+
+<p>The results prove that the performance characteristics of different implementations of an XML Parser can be exposed when using different data sets. The small gap in performance between implementations widens as the size of the document increases. This is likely due to the cost of object and structure allocations. Reducing allocations in <code>libxml2</code> or Swift will squeezes out more performance.</p>
+
+<p>I&rsquo;d probably opt to use &lsquo;Implementation 3&rsquo;, which wraps the original <code>libxml</code> DOM in the <code>XMLParsableType</code> protocol. It is by far the simplest and has very good performance. Even when resources are at a premium it can be better to opt for the simpler solution, even if it means sacrificing a little performance. Maintainability and understandability are important qualities in code, so that the code can be revisited and revised by others and understandable for years to come. As &lsquo;Implementation 3&rsquo; is the most performant and simplest to implement, hard to argue that it is the one to go for!</p>
+
+<p>I hope you&rsquo;ve enjoyed this series of posts, I&rsquo;d love to hear your thoughts and comments!</p>
+
+<hr />
+
+<p>For this reason the Event-Based Streaming SAX parser could be used instead, the whole document need not be read into memory at the expense of a more troublesome interface. Eventually a compromise was found with the StAX parser, buffering the input document with a Cursorable navigation mechanism.</p>
 <div class="footnotes">
 <hr/>
 <ol>
 <li id="fn:1">
-<p>These assumptions actually hold true for a <a href="http://www.livedepartureboards.co.uk/ldbws/">webservice to be consumed</a> in an Application I was prototyping. Depending on the Webservice an Application is consuming, there&rsquo;s a great deal of assumptions that can be made to reduce the complexity of an Implementation.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<p><a href="https://developer.apple.com/library/mac/documentation/cocoa/reference/foundation/classes/nsxmlparser_class/reference/reference.html">NSXMLParser</a> has been part of Cocoa for many years now and would also be suitable, however it only implements an event-based <code>SAX</code>-style interface. While it is certainly possible to make a <code>XMLParserType</code> implementation using NSXMLParser, I won&rsquo;t consider it for now.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
 <li id="fn:2">
-<p>One of the most interesting aspects of Haskell is <a href="http://en.wikipedia.org/wiki/Lazy_evaluation">Lazy Evaluation</a>, in particular how it applies to building up a <a href="http://www.cs.kent.ac.uk/people/staff/dat/miranda/whyfp90.pdf">data structure and then traversing it</a>.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<p>I cut my programming teeth on Java. When consuming an XML Document of greater than a MB or so the JVM Heap could get hammered when using a DOM style parser. This could be hugely problematic when intertwined with a Garbage Collector. I wonder if the ubiquity of JSON Parsers that output to a fully reified Data Structure, rather than Event Based parsers has anything to do with the increased availability of resources since JSON came into vogue.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
 <li id="fn:3">
-<p>This is heavily inspired by the <a href="http://robots.thoughtbot.com/efficient-json-in-swift-with-functional-concepts-and-generics">ThoughtBot article on JSON Parsing in Swift</a>. In my Project I have multiple decoder types for JSON, XML and CSV.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<p>Ok I lied, there I use a lot of Bridging functions that use <code>NSString</code>, but an <code>NSString</code> is instantly converted to a Swift <code>String</code><a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
 <li id="fn:4">
-<p>It is really important to understand the semantic differences between <code>nil</code> in Objective-C and <code>None</code>/<code>nil</code> in Objective-C. With Swift/Objective-C interoperability they are used interchangeably. In Swift they can be thought of as &ldquo;the absence of a value&rdquo;, but in Objective-C they can be both &ldquo;the absence of a value&rdquo; and a <a href="http://en.wikipedia.org/wiki/Null-terminated_string">terminal</a>. Swift features <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/OptionalChaining.html#//apple_ref/doc/uid/TP40014097-CH21-XID_356">Optional Chaining</a> to replicate the nil-messaging of Objective-C. As Objective-C APIs cannot make guarantees about the availability of a Reference Type all of the Objective-C bridged APIs, <a href="ceptual/BuildingCocoaApps/InteractingWithObjective-CAPIs.html#//apple_ref/doc/uid/TP40014216-CH4-XID_30">Reference Types are exposed as Optionals &amp; Force-Unwrapped Optionals</a>.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
-<li id="fn:5">
-<p>I certainly remember writing this kind of thing by hand, before <a href="http://docs.oracle.com/javase/tutorial/jaxb/intro/">Java annotations could be used for Code Generation</a>.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
-<li id="fn:6">
-<p>It would look <a href="https://gist.github.com/lawrencelomax/00ea2c00c9b6ca5bb4ab">something like this</a><a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
+<p>This is the perfect candidate for usage of a <code>struct</code> instead of a <code>class</code>. We don&rsquo;t need for this to be subclassed, or any disposal semantics in <code>dealloc</code>. Reference counting is totally unnecessary as this structure represents an Immutable value. I&rsquo;d love to take a look at the performance of passing structs around, <a href="https://devforums.apple.com/message/990361#990361">it looks like Array and Dictionary struct types use copy-on-write</a> but I have no idea if this applies to User defined structs. <a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
 </ol>
 </div>
 
@@ -287,16 +419,16 @@ public struct Zoo {
   
   <entry>
     <title type="html"><![CDATA[Swift Parsers - Functional]]></title>
-    <link href="http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-functional/"/>
-    <updated>2014-09-11T22:30:00+01:00</updated>
-    <id>http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-functional</id>
-    <content type="html"><![CDATA[<p>In the <a href="/blog/2014/09/11/swift-parsers-imperative/">previous post</a> we built a <code>decode</code> function to parse data out from XML and into an <code>Animal</code> Model using Imperative techniques. This required some efforts in order to satisfy some of the robustness requirements from the <a href="/blog/2014/09/11/swift-parsers-introduction/">first post</a>.</p>
+    <link href="http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-functional/"/>
+    <updated>2014-09-12T22:30:02+01:00</updated>
+    <id>http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-functional</id>
+    <content type="html"><![CDATA[<p>In the <a href="/blog/2014/09/12/swift-parsers-imperative/">previous post</a> we built a <code>decode</code> function to parse data out from XML and into an <code>Animal</code> Model using Imperative techniques. This required some efforts in order to satisfy some of the robustness requirements from the <a href="/blog/2014/09/12/swift-parsers-introduction/">first post</a>.</p>
 
 <p>In this post we&rsquo;ll cover how we can use Functional Programming techniques on top of the language features of Swift to decode XML to an <code>Animal</code> model. This post assumes that you are comfortable with the <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Generics.html#//apple_ref/doc/uid/TP40014097-CH26-XID_278">Parameterized Types and Generics</a>.</p>
 
 <h3>Thinking Functionally</h3>
 
-<p>I&rsquo;m using the fantastic and lightweight <a href="https://github.com/maxpow4h/swiftz/">Swiftz</a> for go-to implementations<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> of many <a href="http://en.wikipedia.org/wiki/Higher-order_function">Higher-Order Functions</a>. It also has a great implementation of the <a href=""><code>Result</code> type from the previous post</a>.</p>
+<p>I&rsquo;m using the fantastic and lightweight <a href="https://github.com/maxpow4h/swiftz/">Swiftz</a> for go-to implementations<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup> of many <a href="http://en.wikipedia.org/wiki/Higher-order_function">Higher-Order Functions</a>. It also has a great implementation of the <a href="/blog/2014/09/12/swift-parsers-imperative/"><code>Result</code> type from the previous post</a>.</p>
 
 <p>One important concept in Functional Programming is that functions can be thought of as <a href="http://en.wikipedia.org/wiki/First-class_function">First-Class types</a> just like any other variable or constant in code. Objective-C has had blocks for some time now, allowing us to think in terms of passing functions around; assigning a block to a property of a Object. However this isn&rsquo;t the same thing as First-Class functions. Swift allows Functions to be First-Class whilst providing equivalence in functions no matter how they are declared, a <a href="https://developer.apple.com/library/prerelease/mac/documentation/Swift/Conceptual/Swift_Programming_Language/Closures.html">Closure in Swift</a> is just another kind of function <a href="http://oleb.net/blog/2014/07/swift-instance-methods-curried-functions/">just like a method</a> or <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Functions.html#//apple_ref/doc/uid/TP40014097-CH10-XID_243">Free Function</a>. Blocks are no longer the best way of passing around a computation, we can consider the equivalence of functions declared with <code>func</code> in a Global or Class scope with local Closures:</p>
 
@@ -309,10 +441,10 @@ let intToNumber1: Int -&gt; NSNumber = { NSNumber.numberWithInt($0) }
 <pre><code>public func •&lt;A, B, C&gt;(f: B -&gt; C, g: A -&gt; B) -&gt; A -&gt; C    // The 'compose' operator from Swiftz
 
 func prefixer(prefix: String)(string: String) -&gt; String { // Equivalent to String -&gt; String -&gt; String
-  return prefix + string
+    return prefix + string
 }
 func postfixer(postfix: String)(bar: String) -&gt; String { // Equivalent to String -&gt; String -&gt; String
-  return string + postfix
+    return string + postfix
 }
 
 let happyPrefix = prefixer("😃") // String -&gt; String. The first String argument of 'prefixer' is applied.
@@ -331,7 +463,7 @@ let string = infixer("Good Morning") // "😃 Good Morning 😞"
 
 <h3>Building new Parsers</h3>
 
-<p>With the idea of composing functions <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Declarations.html#//apple_ref/doc/uid/TP40014097-CH34-XID_598">without having to declare one</a> can be carried over to our problem of decoding XML to a Model;  A specialized Parser function can be made for each of the values that need to be parsed out in the Model. In order to construct an <a href=""><code>Animal</code> Model</a> three parsers are required, with the values placed into the context of a <code>Result</code> for failure information:</p>
+<p>With the idea of composing functions <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Declarations.html#//apple_ref/doc/uid/TP40014097-CH34-XID_598">without having to declare one</a> can be carried over to our problem of decoding XML to a Model;  A specialized Parser function can be made for each of the values that need to be parsed out in the Model. In order to construct an <a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsableTests/Fixtures/Zoo.swift#L13"><code>Animal</code> Model</a> three parsers are required, with the values placed into the context of a <code>Result</code> for failure information:</p>
 
 <pre><code>let kindParser: XMLParsableType -&gt; Result&lt;String&gt; = ...
 let nameParser: XMLParsableType -&gt; Result&lt;String&gt; = ...
@@ -340,8 +472,8 @@ let urlParser: XMLParsableType -&gt; Result&lt;String&gt; = ...
 
 <p>Further, we can think of each of the properties of a decoded <code>Animal</code> as the application of the above functions to the source <code>XMLParsableType</code> from the XML Document.</p>
 
-<pre><code>let kind: Result&lt;String&gt; = typeParser(xml)
-let name: Result&lt;String&gt; = typeParser(xml)
+<pre><code>let kind: Result&lt;String&gt; = kindParser(xml)
+let name: Result&lt;String&gt; = nameParser(xml)
 let url: Result&lt;String&gt; urlParser(xml)
 </code></pre>
 
@@ -358,7 +490,7 @@ let url: Result&lt;String&gt; urlParser(xml)
 
 <p>Sounds the same as Optional Chaining! In fact Optional Chaining <a href="https://github.com/maxpow4h/swiftz/blob/master/swiftz_core/swiftz_core/Optional.swift#L42">can be defined in this way</a>. It should be possible to construct a <code>Result&lt;String&gt;</code> for the  <code>kind</code> value of an <code>Animal</code> this way:</p>
 
-<pre><code>let kind: Result&lt;String&gt; = xml.parseChildren("type").first &gt;&gt;- { $0.parseText() } // Compiler Error!
+<pre><code>let kind: Result&lt;String&gt; = xml.parseChildren("kind").first &gt;&gt;- { $0.parseText() } // Compiler Error!
 </code></pre>
 
 <p>Damn, looks like the types don&rsquo;t match up since the <code>kind</code> value should be a <code>Result&lt;String&gt;</code> instead of a <code>String?</code>. Besides, this looks much worse with needing to use an inline closure to invert the <code>parseText</code> 0-arg instance method on <code>xml</code> into a function that takes an <code>xml</code> parameter and executes <code>parseText</code>. There has to be a better way of doing this&hellip;</p>
@@ -387,7 +519,7 @@ let url: Result&lt;String&gt; urlParser(xml)
 
 <p>The <code>XMLParser.parseChild("name")</code> expression evaluates to a function of <code>XMLParsableType -&gt; Result&lt;XMLParsableType&gt;</code> instead of just a <code>Result</code> value. We&rsquo;re seeing that currying is being used to create a specialized Parser function for a specific XML element, chained together in a sequence of functions.</p>
 
-<p>This is the heart of Function Composition, with <code>Bind</code> performing the behaviour of continuing on success, bailing out as soon as an Error occurs. The possibility of failure within any of the sequences of operations is an essential property of this Parser. Previously this was handled by Optional Chaining and <code>if</code> statements in the <a href="">Imperative version</a>. Using <code>&gt;&gt;-</code> there isn&rsquo;t a branching statement in sight<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>.</p>
+<p>This is the heart of Function Composition, with <code>Bind</code> performing the behaviour of continuing on success, bailing out as soon as an Error occurs. The possibility of failure within any of the sequences of operations is an essential property of this Parser. Previously this was handled by Optional Chaining and <code>if</code> statements in the <a href="/blog/2014/09/12/swift-parsers-imperative/">Imperative version</a>. Using <code>&gt;&gt;-</code> there isn&rsquo;t a branching statement in sight<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>.</p>
 
 <h3>Common Operations</h3>
 
@@ -395,19 +527,19 @@ let url: Result&lt;String&gt; urlParser(xml)
 
 <pre><code>extension XMLParser {
     public class func parseChildText&lt;X: XMLParsableType&gt;(elementName: String)(xml: X) -&gt; Result&lt;String&gt; {
-      let textParser: X -&gt; Result&lt;String&gt; = promoteXmlError("Could not parse text for child \(elementName)") • { $0.parseText()}
-      return self.parseChild(elementName)(xml: xml) &gt;&gt;- textParser
+        let textParser: X -&gt; Result&lt;String&gt; = promoteXmlError("Could not parse text for child \(elementName)") • { $0.parseText()}
+        return self.parseChild(elementName)(xml: xml) &gt;&gt;- textParser
     }
 
     public class func parseChildRecursive&lt;X: XMLParsableType&gt;(elementNames: [String])(xml: X) -&gt; Result&lt;X&gt; {
-      return elementNames.reduce(Result.value(xml)) { (parsable: Result&lt;X&gt;, currentElementName) in
-        return parsable &gt;&gt;- self.parseChild(currentElementName)
-      }
+        return elementNames.reduce(Result.value(xml)) { (parsable: Result&lt;X&gt;, currentElementName) in
+            return parsable &gt;&gt;- self.parseChild(currentElementName)
+        }
     }
 
     public class func parseChildRecusiveText&lt;X: XMLParsableType&gt;(elementNames: [String])(xml: X) -&gt; Result&lt;String&gt; {
-      let textParser: X -&gt; Result&lt;String&gt; = promoteXmlError("Could not parse text for child \(elementNames.last)") • { $0.parseText()}
-      return self.parseChildRecursive(elementNames)(xml: xml) &gt;&gt;- textParser
+        let textParser: X -&gt; Result&lt;String&gt; = promoteXmlError("Could not parse text for child \(elementNames.last)") • { $0.parseText()}
+        return self.parseChildRecursive(elementNames)(xml: xml) &gt;&gt;- textParser
     }
 }
 </code></pre>
@@ -431,11 +563,11 @@ let name: Result&lt;String&gt; = XMLParser.parseChildTextRecursive(["nested_nons
 <p>Coercing a value from a String to a Numeric type may not always work. The String &lsquo;14123&rsquo; can be interpreted as an <code>Int</code> but the value <code>134djk23</code> cannot. Again, this falls into our notion of Model decoding failure. The <code>NSNumberFormatter</code> class is a Cocoa way of interpreting Strings as Numbers, we can write an extension for the  <code>Int</code> type to intepret a <code>String</code> as an <code>Int</code>, with <code>Optional.None</code> used to representing failure.</p>
 
 <pre><code>public extension Int {
-  public static func parseString(string: String) -&gt; Int? {
-    let formatter = NSNumberFormatter()
-    let number = formatter.numberFromString(string)
-    return number?.integerValue
-  }
+    public static func parseString(string: String) -&gt; Int? {
+        let formatter = NSNumberFormatter()
+        let number = formatter.numberFromString(string)
+        return number?.integerValue
+    }
 }
 </code></pre>
 
@@ -446,7 +578,7 @@ let name: Result&lt;String&gt; = XMLParser.parseChildTextRecursive(["nested_nons
 <pre><code>let toiletCountParser: String -&gt; Result&lt;Int&gt; = { promoteDecodeError("Could not parse 'disabled_parking")(value: Int.parseString($0)) }
 </code></pre>
 
-<p>Or we can use the <a href=""><code>Compose</code> and <code>Bind</code> Operators again</a>:</p>
+<p>Or we can use the <code>Compose</code> and <code>Bind</code> Operators again:</p>
 
 <pre><code>let toiletCountParser: String -&gt; Result&lt;Int&gt; = promoteDecodeError("Could not parse 'disabled_parking") • Int.parseString
 let toiletCount =  XMLParser.parseChildText(["facilities", "toilet"])(xml: xml) &gt;&gt;- toiletCountParser
@@ -470,22 +602,22 @@ let toiletCount =  XMLParser.parseChildText(["facilities", "toilet"])(xml: xml) 
 
 <p>Let&rsquo;s turn back to Curried Functions, this time to a Curried &lsquo;Constructor&rsquo;<sup id="fnref:8"><a href="#fn:8" rel="footnote">8</a></sup>:</p>
 
-<pre><code>static func build(type: String)(name: String)(url: NSURL) -&gt; Animal {
-  return self(type: type, name: name, url: url)
+<pre><code>static func build(kind: String)(name: String)(url: NSURL) -&gt; Animal {
+    return self(kind: kind, name: name, url: url)
 }
 </code></pre>
 
 <p>By adding a little more context to each of the applications of Higher-Order functions, we should be able to follow what is going on as the <code>Animal.build</code> function down to a <code>Result&lt;Animal&gt;</code>:</p>
 
 <pre><code>// These are previously defined using Higher-Order functions and XMLParser
-let type: Result&lt;String&gt; = ...
+let kind: Result&lt;String&gt; = ...
 let name: Result&lt;String&gt; = ...
 let url: Result&lt;NSURL&gt; = ...
 
 // The Build Function is a Curried function that will yeild functions with every application until we have the Animal value.
 let build: String -&gt; String -&gt; NSURL -&gt; Animal = self.build
 // Each of these stage gets the Animal structure closer to being initialized
-let first: Result&lt;String -&gt; NSURL -&gt; Animal&gt; = self.build &lt;^&gt; type
+let first: Result&lt;String -&gt; NSURL -&gt; Animal&gt; = self.build &lt;^&gt; kind
 let second: Result&lt;NSURL -&gt; Animal&gt; = first &lt;*&gt; name
 let third: Result&lt;Animal&gt; = second &lt;*&gt; url
 </code></pre>
@@ -528,14 +660,14 @@ let third: Result&lt;Animal&gt; = second &lt;*&gt; url
 
 <p>I honestly believe its worth taking a jump at the conceptual hurdle, whether it is for writing code that is more robust and predictable or to satisfy a curiosity of learning something new.</p>
 
-<p>Thanks for Reading! I suggest reading some other brilliant posts that do a better job than I of laying this all out! As a bonus, the next post will focus on how <code>XMLParsableType</code> can be implemented in a variety of ways.</p>
+<p>Thanks for Reading! I suggest reading <a href="http://robnapier.net/functional-wish-fulfillment">some other brilliant posts</a> that do a <a href="http://robots.thoughtbot.com/efficient-json-in-swift-with-functional-concepts-and-generics">better job than I</a> of laying this all out! As a bonus, the next post will focus on how <code>XMLParsableType</code> can be implemented in a variety of ways.</p>
 
 <hr />
 <div class="footnotes">
 <hr/>
 <ol>
 <li id="fn:1">
-<p>Swiftz has a Core library as well as a more full-featured Framework. There&rsquo;s a lot of interesting stuffin the Full library, but just getting started with the Core is a good place to start.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<p>Swiftz has separated its functionality across a <a href="https://github.com/maxpow4h/swiftz/tree/master/swiftz_core">core</a> library and the <a href="https://github.com/maxpow4h/swiftz/tree/master/swiftz">library proper</a>. This post will only use the Core library.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
 <li id="fn:2">
 <p>I&rsquo;m lying, I&rsquo;ve changed the Generic Parameters from <code>VA</code> &amp; <code>VB</code> to <code>A</code> &amp; <code>B</code><a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
 <li id="fn:3">
@@ -556,6 +688,284 @@ let third: Result&lt;Animal&gt; = second &lt;*&gt; url
 <p>This happens when any <a href="http://en.wikipedia.org/wiki/Operator_overloading#1980s"><em>&lsquo;new&rsquo;</em></a> language feature comes along. I know I abused blocks when they appeared in Objective-C.<a href="#fnref:10" rev="footnote">&#8617;</a></p></li>
 <li id="fn:11">
 <p>In Objective-C this can be handled with <a href="https://github.com/rentzsch/NSXReturnThrowError">Macros and Early Return</a>, but we can&rsquo;t rewrite/mangle the rules of the language in Swift as we don&rsquo;t have Macros.<a href="#fnref:11" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Swift Parsers - Imperative]]></title>
+    <link href="http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-imperative/"/>
+    <updated>2014-09-12T22:30:01+01:00</updated>
+    <id>http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-imperative</id>
+    <content type="html"><![CDATA[<p>In the <a href="/blog/2014/09/12/swift-parsers-introduction/">previous post</a> I talked about some of the possible requirements for a Parser that extracts data from a Serialization Format and places it in a Language-Native Model. In this post I&rsquo;ll cover how an XML Parser for a Model Object can be built using some of the familiar Imperative features of Swift. Sample Code is <a href="http://github.com/lawrencelomax/XMLParsable">available on GitHub</a>.</p>
+
+<h3>Model and XML</h3>
+
+<p>Let&rsquo;s define a <a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsableTests/Fixtures/zoo.xml">hypothetical XML</a> that we wish to parse:</p>
+
+<pre><code>&lt;zoo&gt;
+    &lt;animals&gt;
+        &lt;animal&gt;
+            &lt;kind&gt;cat&lt;/kind&gt;
+            &lt;nested_nonsense&gt;
+                &lt;name&gt;grumpy&lt;/name&gt;
+            &lt;/nested_nonsense&gt;
+            &lt;url&gt;http://en.wikipedia.org/wiki/Grumpy_Cat&lt;/url&gt;
+        &lt;/animal&gt;
+        &lt;animal&gt;
+            &lt;kind&gt;cat&lt;/kind&gt;
+            &lt;nested_nonsense&gt;
+                &lt;name&gt;long&lt;/name&gt;
+            &lt;/nested_nonsense&gt;
+            &lt;url&gt;http://knowyourmeme.com/memes/longcat&lt;/url&gt;
+        &lt;/animal&gt;
+        &lt;animal&gt;
+            &lt;kind&gt;dog&lt;/kind&gt;
+            &lt;nested_nonsense&gt;
+                &lt;name&gt;i have no idea what i'm doing&lt;/name&gt;
+            &lt;/nested_nonsense&gt;
+            &lt;url&gt;http://knowyourmeme.com/memes/i-have-no-idea-what-im-doing&lt;/url&gt;
+        &lt;/animal&gt;
+    &lt;/animals&gt;
+    &lt;facilities&gt;
+        &lt;toilet&gt;42&lt;/toilet&gt;
+        &lt;disabled_parking&gt;true&lt;/disabled_parking&gt;
+        &lt;a_random_assortment_of_characters&gt;sdfdf821n9sfa&lt;/a_random_assortment_of_characters&gt;
+        &lt;seriously&gt;
+            &lt;crazy_nested&gt;
+                &lt;drainage&gt;Good&lt;/drainage&gt;
+            &lt;/crazy_nested&gt;
+        &lt;/seriously&gt;
+    &lt;/facilities&gt;
+&lt;/zoo&gt;
+</code></pre>
+
+<p><a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsableTests/Fixtures/Zoo.swift">The Model</a> includes the parts of the XML that our Application cares about and ignores others:</p>
+
+<pre><code>public struct Animal: XMLDecoderType {
+    public let kind: String
+    public let name: String
+    public let url: NSURL
+}
+
+public struct Zoo {
+    let toiletCount: Int
+    let disabledParking: Bool
+    let drainage: String
+    let animals: [Animal]
+}
+</code></pre>
+
+<p>This is simple and immutable, the Parser forms part of the backend for the User Interface to consume. There&rsquo;s no reason for the User Interface to be able to manipulate these Models directly.</p>
+
+<h3>An Interface to XML</h3>
+
+<p>Stubbing a Protocol or Interface is a great way of getting to grips with the problem that needs to be solved. It also helps to determine what is necessary for to implement, as well as the details that can be ignored to solve the problem at hand. There is also a bunch of <a href="/blog/2014/09/12/swift-parsers-introduction/">previously laid out requirements to be considered</a></p>
+
+<p>In parsing this XML<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. I&rsquo;ve made a few assumptions:</p>
+
+<ol>
+<li>I care about the data contained in Text Nodes.</li>
+<li>I need to be able to recursively address Elements within a Tree-like structure.</li>
+<li>I need to be able to enumerate Elements of the same name at the same level in the tree.</li>
+<li>I don&rsquo;t care about anything else (namespaces, attributes, schemas).</li>
+</ol>
+
+
+<p>With those assumptions in mind, a Protocol for defining how data can be extracted from a Parsable XML Node can be made:</p>
+
+<pre><code>public protocol XMLParsableType {
+    func parseChildren(childTag: String) -&gt; [Self]
+    func parseText() -&gt; String?
+}
+</code></pre>
+
+<p><em>&ldquo;That&rsquo;s It?&rdquo;</em>. Yep. Everything else can be composed on top of this minimal protocol; more complex data extraction functions can be built on top of these fundamentals. It&rsquo;s easy to define the responsibility of this Protocol in one sentence:</p>
+
+<blockquote><p><em>&ldquo;An XML Parsable has an ordered collection of Child Parsables and may have an associated String of Text&rdquo;</em></p></blockquote>
+
+<p>Protocols are permitted to have a recursive definition, using the <code>Self</code> placeholder type. How and where the underlying XML document is stored is left to the implementing class/struct/enum<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. As we will see in <a href="/blog/2014/09/12/swift-parsers-libraries/">Part 4</a>, obtaining a child may be implemented by traversing a fully reified data structure, or moving a cursor partially visible representation of the structure.</p>
+
+<p>As well as a representation of the Data Serializations itself, there needs to be a consistent way of defining that a Model can extract out values of Data Serialization. The entry point can be defined in terms of a decode protocol<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup> that the Model structures should implement:</p>
+
+<pre><code>public protocol XMLDecoderType {
+    class func decode&lt;X: XMLParsableType&gt;(xml: X) -&gt; Result&lt;Self&gt;
+}
+</code></pre>
+
+<p>This function will be where the action is and can be implemented in the Model type definitions themselves or separately as Extensions. As <code>XMLParsableType</code> has a <code>Self</code> requirement, the usage of an <code>XMLParsableType</code> protocol needs to be <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Generics.html#//apple_ref/doc/uid/TP40014097-CH26-XID_286">satisfied with Generics</a>.</p>
+
+<h3>Surfacing Failure</h3>
+
+<p>In the interface for <code>XMLParsableType</code>, failure is indicated with the return of <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/TheBasics.html#//apple_ref/doc/uid/TP40014097-CH5-XID_483">the <code>None</code> case of the <code>Optional</code> enum</a>. An <code>Optional</code> surrounds the value with a <a href="http://adit.io/posts/2013-04-17-functors,_applicatives,_and_monads_in_pictures.html">Context describing the availability of the value</a>. The absence of a value in a <code>XMLParsableType</code> indicates some kind of failure, but without any information about how the Error came about.</p>
+
+<p>Some Cocoa APIs use <code>nil</code> as the return value represent failure<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup> alone, but idiomatic Cocoa will also include a by-reference <code>NSError</code> to return Error Information in the event of failure. Exceptions are being <a href="https://twitter.com/atnan/status/506832064633901056">weeded out of Cocoa API</a> for all but programmer error. <code>NSError</code> has the an associated <a href="https://developer.apple.com/library/mac/documentation/Cocoa/Reference/Foundation/Classes/NSError_Class/Reference/Reference.html#//apple_ref/occ/instm/NSError/domain">&ldquo;Error Domain&rdquo;</a> as well as <a href="https://developer.apple.com/library/mac/documentation/Cocoa/Reference/Foundation/Classes/NSError_Class/Reference/Reference.html#//apple_ref/doc/uid/20001704-CJBIAHGF"><code>String</code> Description</a> of the cause of the failure. This can be massively helpful as finding the code or resource that is responsible is a nightmare if the only information is &ldquo;a problem occurred somewhere&rdquo;. For example the <code>NSJSONSerialization</code> API will give the line-number of a syntax error in a JSON resource.</p>
+
+<p>Moving to a Safe Swift world, return of an <code>NSError</code> and a possible value can be encapsulated in the same value using an <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Enumerations.html#//apple_ref/doc/uid/TP40014097-CH12-XID_227">Enumeration with Associated Values</a>, rather <a href="https://www.google.co.uk/search?client=safari&amp;rls=en&amp;q=nserror+dereference+pointer&amp;ie=UTF-8&amp;oe=UTF-8&amp;gfe_rd=cr&amp;ei=3MEOVNesH4G28AOjw4D4Bw#rls=en&amp;q=nserror+dereference+pointer">dereferencing pointers</a>. This is the <code>Result</code> with the same availability semantics as an <code>Optional</code>, with additional failure information provided with an <code>NSError</code> in the failure case:</p>
+
+<pre><code>public enum Result&lt;V&gt; {
+    case Error(NSError)
+    case Value(Box&lt;V&gt;)
+}
+</code></pre>
+
+<p>As there are potentially many sources of failure in the <code>decode</code> method, it is handy to write a Helper Method that can &ldquo;promote&rdquo; an <code>Optional</code> to a <code>Result</code> with an Error if the Optional does not contain a value. This will populate the <code>NSError</code> with a default Error Domain and attach a User Defined message:</p>
+
+<pre><code>public func promoteDecodeError&lt;V&gt;(message: String)(value: V?) -&gt; Result&lt;V&gt;
+</code></pre>
+
+<h3>An Imperative Approach</h3>
+
+<p>From the previous post, I mentioned that the lack a dynamic runtime in Swift will mean that bringing over some Objective-C programming techniques will be impossible. As a Swift Parser won&rsquo;t be able to use these techniques, a more traditional approach to parsing will have to be used<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>.</p>
+
+<p>Failing-Fast was outlined as a potential feature of a Parser in the previous post, the implementation of an XML-to-Animal decoding function will need to take this into account. The following Imperative approach shows how it may be possible to extract a <code>Result&lt;Animal&gt;</code> from an <code>XMLParsableType</code>:</p>
+
+<pre><code>static func decode&lt;X: XMLParsableType&gt;(xml: X) -&gt; Result&lt;Animal&gt; {
+    if let kind = XMLParser.parseChildText("kind")(xml: xml).toOptional() {
+        if let name = XMLParser.parseChildText("name")(xml: xml).toOptional() {
+            if let urlString = XMLParser.parseChildText("url")(xml: xml).toOptional() {
+                return Result.value(self(type: type, name: name, url: NSURL.URLWithString(urlString)) )
+            }
+            return Result.Error(decodeError("Could not parse 'urlString' as a String"))
+        }
+        return Result.Error(decodeError("Could not parse 'name' as a String"))
+    }
+    return Result.Error(decodeError("Could not parse 'kind' as a String"))
+}
+</code></pre>
+
+<p>This doesn&rsquo;t look great. The nesting is terrible, the Failure and Success conditions are separated around the conditional. In this case, there are only three values, a Model with more properties would make the nesting significantly worse. In Objective-C this can be better tackled by returning early on failure, however this would require lots of force unwrapping<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup>. Conditional Statements are required as Failure when one of the values is missing is a requirement of our Model and is guaranteed to exist in the XML.</p>
+
+<p>Despite these problems, there are some patterns are emerging. Firstly, it looks like extracting the Text from a Child is a common enough task that can be converted to a function in its own right. Obtaining a Child&rsquo;s Child&rsquo;s looks like an interesting area for some more meaningful functions. Optional Chaining is being used to avoid further conditionals.</p>
+
+<p>Most importantly is that the nesting is an Imperative way of implementing that the successful condition for this function is dependent on the availability of three values in the XML. Moving our understanding of the pattern from an Imperative model to a Declarative model will be crucial to building a better way of constructing a <code>decode</code> function.</p>
+
+<h3>Next Time&hellip;</h3>
+
+<p><a href="/blog/2014/09/12/swift-parsers-functional/">Next time</a>, we&rsquo;ll take a Functional approach to the <code>decode</code> method, allowing us to think at a much higher level about how a Model is built.</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>These assumptions actually hold true for a <a href="http://www.livedepartureboards.co.uk/ldbws/">webservice to be consumed</a> in an Application I was prototyping. Depending on the Webservice an Application is consuming, there&rsquo;s a great deal of assumptions that can be made to reduce the complexity of an Implementation.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>One of the most interesting aspects of Haskell is <a href="http://en.wikipedia.org/wiki/Lazy_evaluation">Lazy Evaluation</a>, in particular how it applies to building up a <a href="http://www.cs.kent.ac.uk/people/staff/dat/miranda/whyfp90.pdf">data structure and then traversing it</a>.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>This is heavily inspired by the <a href="http://robots.thoughtbot.com/efficient-json-in-swift-with-functional-concepts-and-generics">ThoughtBot article on JSON Parsing in Swift</a>. In my Project I have multiple decoder types for JSON, XML and CSV.<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<li id="fn:4">
+<p>It is really important to understand the semantic differences between <code>nil</code> in Objective-C and <code>None</code>/<code>nil</code> in Objective-C. With Swift/Objective-C interoperability they are used interchangeably. In Swift they can be thought of as &ldquo;the absence of a value&rdquo;, but in Objective-C they can be both &ldquo;the absence of a value&rdquo; and a <a href="http://en.wikipedia.org/wiki/Null-terminated_string">terminal</a>. Swift features <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/OptionalChaining.html#//apple_ref/doc/uid/TP40014097-CH21-XID_356">Optional Chaining</a> to replicate the nil-messaging of Objective-C. As Objective-C APIs cannot make guarantees about the availability of a Reference Type all of the Objective-C bridged APIs, <a href="ceptual/BuildingCocoaApps/InteractingWithObjective-CAPIs.html#//apple_ref/doc/uid/TP40014216-CH4-XID_30">Reference Types are exposed as Optionals &amp; Force-Unwrapped Optionals</a>.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+<li id="fn:5">
+<p>I certainly remember writing this kind of thing by hand, before <a href="http://docs.oracle.com/javase/tutorial/jaxb/intro/">Java annotations could be used for Code Generation</a>.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
+<li id="fn:6">
+<p>It would look <a href="https://gist.github.com/lawrencelomax/00ea2c00c9b6ca5bb4ab">something like this</a><a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Swift Parsers - Introduction]]></title>
+    <link href="http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-introduction/"/>
+    <updated>2014-09-12T22:30:00+01:00</updated>
+    <id>http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-introduction</id>
+    <content type="html"><![CDATA[<p>This the first in a series of four posts on Parsing code in Swift. This first post takes a look at the development landscape for Cocoa, Swift, Objective-C &amp; Parsers. Some of the stuff covered here is also handled very well by <a href="http://robnapier.net/functional-wish-fulfillment">Rob Napier</a> and <a href="http://robots.thoughtbot.com/efficient-json-in-swift-with-functional-concepts-and-generics">Tony DiPasquale</a> so make sure that you check out their posts if you haven&rsquo;t already.</p>
+
+<h3>Introduction</h3>
+
+<p>iOS Development has been a fun ride over the last few years. Frameworks are added and improved and generally speaking follow some common idioms. UIKit is well-trodden ground with significant changes as the level of interactivity and responsiveness of what a mobile experience is moves ever forward. When new API introduced or refined, compatibility  issues occur, we fix them, we add delete some code that new API subsumes, we write some new features using the new API.</p>
+
+<p>The Backend of an Application is still a bit of a frontier. With no <code>BackEndKit</code> to provide a unified interface of a Network Connections and the Persistent State of the Application, there are no &lsquo;rails&rsquo; to start on and how a Backend is built can vary enormously from Application-to-Application. A expanding world of Libraries has sprung up to simplify and consolidate the thinking of how back-end components intact in Objective-C. Much of the dynamism and flexibility of the Objective-C runtime as well as preprocessor macros is leveraged in order to kill repetitious code with metaprogramming. Now that a new Programming language has arrived and new <a href="https://developer.apple.com/library/prerelease/ios/documentation/General/Conceptual/ExtensibilityPG/index.html">OS features that all but a modular design </a> the time is now to look at best practice in iOS App Backends.</p>
+
+<p>There is a lot of concern how Swift can (and can&rsquo;t be used) used with existing ways of getting-stuff-done in Objective-C. WWDC 2014 and the following months have had a ton to learn, so lets review a little of what we know about how working with Swift will effect iOS Development.</p>
+
+<h3>Cocoa &amp; Swift</h3>
+
+<p>Swift Interoperability with Cocoa is a mostly known quantity. Objective-C interoperability is deeply ingrained in the language, regardless of the philosophical departures that Swift makes from Objective-C. Cocoa will remain, repeated casting will be inconvenient, Strong Types with the Optional type contract will allow us to reason better about the state of the Application. Smaller components of the Application can be migrated to a Swift world in a piecemeal way without drastically changing the underlying architecture due to the extent of the <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/BuildingCocoaApps/index.html#//apple_ref/doc/uid/TP40014216">interoperability features</a>.</p>
+
+<p>There&rsquo;s a lot of new language features, with a focus on moving up the levels of abstraction<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. Having <a href="http://swifter.natecook.com/type/LazySequence/">Lazy Sequences as part of the Standard Library</a> and setter <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Declarations.html">side-effects as part of the language</a> all show that things are getting a lot more modern.</p>
+
+<p>The compiler is now doing a lot more with type inference can be used to increase code density without sacrificing readability or intent. Functions are types like any other value, people are rejoicing as the syntax of the language can be pared back by removing the need to worry about pointers.</p>
+
+<h3>Headers &amp; Classes</h3>
+
+<p>Having headers is fantastic from a documentation point of view, but the evils of duplication makes can make them unwieldy as well as informative. Swift leans on Header generation<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup> and access control to automate the process of generating an Interface from the Implementation itself. Implementation details don&rsquo;t need to be leaked and API stubs don&rsquo;t need to be copy-pasted between <code>.h</code> and <code>.m</code></p>
+
+<p>The implementation of both State and Behaviour become considerably &lsquo;cheaper&rsquo; to write, re-write and update. Classes require a fraction of the number of characters and lines-of-code to achieve the same results in terms of defining Properties and Methods to their Objective-C brethren<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup>. By making the time taken to write and re-write a Class significantly easier, a great deal of the resistance of decomposing Classes into smaller and more testable Units is removed. The Units become smaller and easier to test, revising code becomes easier as part of a virtuous circle.</p>
+
+<h3>Metaprogramming &amp; Dynamism</h3>
+
+<p>Chief among the concerns with Swift is how we will cope without the dynamism that Objective-C offers. The malleability of the runtime allows for the creation and injection of functions at runtime<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>. Property Mapping libraries and Model Descriptions inspect classes at runtime, defining the interaction of Classes at a much higher level of abstraction. Reducing boiler plate code isn&rsquo;t just about convenience at the current moment in time, it reduces the entropy of the codebase over time.</p>
+
+<p>However, applying these methods will just not work in Swift. Pure Swift constructs are closed at compile time and cannot be tinkered with at runtime. There is no preprocessor available for code generation before it hits the compile. Safety is king, requiring the code to be totally unambiguous about the semantics of the code if there is insufficient information for the Compiler to reason with. There is no Reflection package or framework for performing the same kind of interactions with Classes at runtime, so this seems like a huge problem.</p>
+
+<p>However there are other ways of constructing and building Applications, using Abstractions that seem far away from the Gang-of-Four, Object Oriented Programming and the more dynamic idioms of Objective-C. Functional Programming provides us with abstractions that help us to dispense with the repetition of Imperative programming but without sacrificing safety and predictability. These techniques can be employed without the need to read 42 tutorials about what a Monad is and isn&rsquo;t. Functional Programming has a few fundamental particles, once we learn how they can be applied, the mathematics behind them become a mainly academic exercise that can be ignored if we want to. I&rsquo;ll cover this in the third article in this series.</p>
+
+<h3>Parser Requirements</h3>
+
+<p>Let&rsquo;s take a look at the how we can go about one component within an Application in Swift, Parsing.</p>
+
+<p>I&rsquo;m defining &lsquo;Parsing&rsquo; to be the process of extracting data from <a href="http://en.wikipedia.org/wiki/Comparison_of_data_serialization_formats">Data Serialization format</a> such as XML or JSON, to a native Model structure, valid and usable by the rest of the Application. The Parser itself can have some or all of the following requirements:</p>
+
+<ol>
+<li>Check that a Value exists for a given Key at the current level, or navigate the Data to a deeper level.</li>
+<li>Distinguish between a terminal value in the Data Serialization itself versus the value not existing at all. A <code>null</code> value in a JSON needs to be represented in a distinct way to a value not existing at all.</li>
+<li>Coerced a value in the Serialization format into the type of the value that is expected in the Model.</li>
+<li>Fail early if the the Serialization Format differs in any way from our expectations, without crashing.</li>
+<li>If Parsing failure occurs, five valuable output to make it easier to isolate whether the Parsing code&rsquo;s assumptions about the structure of the data are wrong, or that the structure of the data itself is wrong, or both a wrong.</li>
+<li>Provide defaults, or ways of deterministically deriving defaults for values that are known to be optional in the data structure.</li>
+<li>The interface to the Serialization format&rsquo;s contents should provide a level of abstraction consistent with how it should be used.</li>
+<li>Don&rsquo;t let any external state effect the Parsing unless absolutely necessary. Really, don&rsquo;t.</li>
+<li>Seriously, don&rsquo;t even think about modifying external state. Being able to make a parser concurrent with the rest of the application makes everybody happy.</li>
+<li>It should be easy to Parse serialized data from a variety of sources into the parser. The data may come bundled with the Application, from a HTTP request, or a fixture in a Unit Test.</li>
+<li>Write Unit Tests for all of the boundary conditions, so we can be super-certain that our understanding of the serialization format holds true in the implementation.</li>
+<li>If our Unit Tests don&rsquo;t cover all of the possible conditions in the structure of the format and a new condition is discovered, write a test for to ensure as much of the information about the structure of the data has been captured as possible.</li>
+<li>Don&rsquo;t make the interface for pulling data out of the Serialization more expansive than necessary. If functionality is required that can be expressed in terms of more fundamental extraction functions, define it as a composition of the more fundamental functions.</li>
+</ol>
+
+
+<p>This is not an exhaustive list of requirements and it has already exhausted you and I. Admittedly, some of these requirements are true of Software Development generally, but it is always worth thinking about.</p>
+
+<p>In Objective-C, Parsing can be a minefield of typing and branching. I don&rsquo;t think I&rsquo;d be going out on a limb to say that it is one of the most fragile parts of most codebases. Because of its fragility, if an Objective-C Application has any Unit Tests whatsoever, the Parsing components will have the best coverage. This is a big driving force behind Libraries such as the brilliant <a href="https://github.com/mantle/mantle">Mantle</a></p>
+
+<p>Regardless of the awesomeness of an Objective-C library for parsing data, it won&rsquo;t ever be possible to inspect the expected type of the destination property in the Model at runtime and thereby avoid issues with Model Objects having values of the wrong type assigned<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup>. Not only that but Objective-C doesn&rsquo;t fail-fast if an Object assigned an Object of a class differs from the expected class that the assignee Object expects<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup>. This leads to explosions that occurs far away from the original erroneous assignment<sup id="fnref:7"><a href="#fn:7" rel="footnote">7</a></sup>.</p>
+
+<p>However, it would appear that the situation is even worse for Swift. Without much in the way of metaprogramming or some runtime magic it looks like the process of parsing will be incredibly repetitive and laborious.</p>
+
+<h3>XML</h3>
+
+<p>XML is an interesting serialization format because it isn’t JSON. It&rsquo;s a format that we like to chuckle about and deride because of the complexity, but the reality is there are many APIs that Applications need to connect to that use XML. I think that many of the problems that we have with parsing XML comes from the fact that the abstractions we use to extract data from XML aren&rsquo;t that great. Handling all of the failure points in Parsing is a hard task and that&rsquo;s why we want to automate it with metaprogramming and make it bulletproof with Unit Tests.</p>
+
+<p>XML is also format because there is a good amount of variety in the ways that we model an XML document and its content in API<sup id="fnref:8"><a href="#fn:8" rel="footnote">8</a></sup>. Typically JSON is just extracted into the native Array, Dictionary, String &amp; Numeric types of the targeted programming language. XML grew in popularity at a time when system resources like available memory were at much more of a premium than they are today. Constraints like this tend to drive innovation in a few directions, which make the process of parsing a little bit more interesting that pulling values out of a language-native Dictionary object.</p>
+
+<p>If you aren&rsquo;t a crazy person like me you&rsquo;ll probably stick a Webservice in front of whatever else you need to consume and do all the complex data processing on a Server<sup id="fnref:9"><a href="#fn:9" rel="footnote">9</a></sup>, then spit everything out in a RESTful JSON service that normalises any intricacies and madness in the original data. However the reality isn&rsquo;t always so ideal and its up to the Client Software to process data from a variety of Sources and Serialization Formats.</p>
+
+<h3>Next Time&hellip;</h3>
+
+<p>In the <a href="/blog/2014/09/12/swift-parsers-imperative/">next post</a>, I&rsquo;ll be a crazy person and create a simple XML interface in Swift, and extract data out of it in an Imperative style.</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p>The inevitable is happening in iOS Land; Higher Levels of Abstraction as device performance increases, Frameworks and specialized languages for performance critical code. On iOS this is the availability of Accelerate and Metal. The amount of C &amp; C++ in iOS Development may diminish, but I don&rsquo;t see it going away within the next decade.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>This can be seen in any imported Frameworks, whether they are provided by the User, a 3rd Party, or Apple. Just CMD+Click on a third party Class in Xcode and it will take you to the Class or Method definition.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>This means we&rsquo;ll all write better method documentation right?<a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<li id="fn:4">
+<p>A lot of the malleability of the Objective-C runtime has allowed to be built on top of it in the first place!<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+<li id="fn:5">
+<p>It is possible to do this by attatching data about Classes of the properties of a Class, manually or automatically (this is part of the role of <a href="https://developer.apple.com/library/mac/documentation/Cocoa/reference/CoreDataFramework/Classes/nsManagedobjectModel_Class/Reference/Reference.html">NSManagedObjectModel</a>). However, this isn&rsquo;t the same thing as being able to know what the Class of an <code>@property</code> is from the Objective-C runtime.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
+<li id="fn:6">
+<p>I think my Pro Strong-Typing-bias is showing. I&rsquo;m just describing one of the disadvantages of a weak type system, when there are also benefits.<a href="#fnref:6" rev="footnote">&#8617;</a></p></li>
+<li id="fn:7">
+<p>The contracts of assignment can be a good deal stronger with liberal use of assertions like <code>NSParameterAssert</code>.<a href="#fnref:7" rev="footnote">&#8617;</a></p></li>
+<li id="fn:8">
+<p>This is covered in more detail in the <a href="/blog/2014/09/12/swift-parsers-libraries/">fourth in this series</a>.<a href="#fnref:8" rev="footnote">&#8617;</a></p></li>
+<li id="fn:9">
+<p>You&rsquo;ll also have your pick of languages on the server, so you can use a language &amp; framework that works well in this domain. Either way the Client App will have to consume data at some point and the App should be fault-tolerant enough that it doesn&rsquo;t fall over if there&rsquo;s a hiccup on the server.<a href="#fnref:9" rev="footnote">&#8617;</a></p></li>
 </ol>
 </div>
 
@@ -650,55 +1060,6 @@ let third: Result&lt;Animal&gt; = second &lt;*&gt; url
 <p>Unit Testing is traditionally seen as a way to validate the correctness of an implementation and ensure that it does not regress in the future.</p>
 
 <p>You may have to make changes to your Application code to make it more testable. This may appear to be backwards at first, but it is worth persevering! Altering your implementation to make it more testable has benefits beyond correctness in the present, and preventing regression in the future. I hope to show you more of these effects in Part 2.</p>
-]]></content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[Openness for the Developer &amp; the User]]></title>
-    <link href="http://lawrencelomax.github.io/blog/2013/07/17/openness-for-the-developer-and-the-user/"/>
-    <updated>2013-07-17T18:48:00+01:00</updated>
-    <id>http://lawrencelomax.github.io/blog/2013/07/17/openness-for-the-developer-and-the-user</id>
-    <content type="html"><![CDATA[<p>I recently saw this comment in a Hackernews Thread, in reference to the battery performance characteristics of major mobile devices. Emphasis mine:</p>
-
-<blockquote><p>Absolutely that&rsquo;s a problem with Android. It&rsquo;s a natural consequence of having a platform where apps are free to access pretty much any hardware in the background with no review <strong>(that&rsquo;s a good thing if you&rsquo;re a developer though)</strong>.</p>
-
-<p>However, Android gives you tools to see which apps are using the most battery, and you can uninstall them if they&rsquo;re a problem.</p></blockquote>
-
-<p>At first glance, this makes sense. When a developer is given more freedom in the Operating System that they develop for, they have the freedom to make Applications for users. The argument that ‘open is better’ often boils down to this.</p>
-
-<p>The Hacker Mentality of Open Systems has lead to so many great products such as the <a href="http://www.raspberrypi.org">Raspberry Pi</a> , Linux (and therefore Android) and <a href="http://git-scm.com">tools</a> <a href="http://gcc.gnu.org">that</a> <a href="http://www.vim.org">developers</a> <a href="http://en.wikipedia.org/wiki/WebKit">use</a> the world over. The libertarian philosophy of doing as you see fit with the hardware that you own, is certainly romantic in the way it provides a romantic liberation from our closed overloads.</p>
-
-<p>Unfortunately for the Hacker Mentality, nobody cares.</p>
-
-<p>Or should I should say, <em>‘only a very small and vocal minority of people care’</em>. If you are writing an App for non-technical users (and you most likely are), these users care about a few things:</p>
-
-<ol>
-<li>Battery Life</li>
-<li>Lots of fresh and up to date content</li>
-<li>Availability on my Operating System</li>
-<li>Not asking for creepy personal details</li>
-<li>An attractive and friendly User Interface</li>
-<li>An accessible User Interface</li>
-<li>An interface that responds to my <a href="http://en.wikipedia.org/wiki/Responsive_web_design">type of Device</a> and my <a href="http://en.wikipedia.org/wiki/Responsiveness">Touches</a></li>
-<li>No confusing messages</li>
-<li>Battery Life</li>
-<li>Not jumping through elaborate hoops to get to content</li>
-<li>Not having to continually maintain an App&rsquo;s storage and memory usage</li>
-<li>Battery Life</li>
-</ol>
-
-
-<p>It is good to have a debate about which platforms are better for the User across a whole range of criteria. We can have conversations about which criteria are the most important. To see managing the memory usage of an Application in your OS as a feature, is to fundamentally misunderstand what Users <em>really</em> care about.</p>
-
-<p>We now live in a world where a significant proportion of users have <a href="http://www.hanselman.com/blog/TheFloppyDiskMeansSaveAnd14OtherOldPeopleIconsThatDontMakeSenseAnymore.aspx">never seen what I know to be a save icon</a>. Even more profound is users who have never had the pleasure of using a <em>Task Manager</em> before. An OS having a Task Manager is not a feature or a necessity anymore, but having decent battery life certainly is. Achieving better battery life without a Task Manager is the sweet spot.</p>
-
-<blockquote><p><a href="http://www.engadget.com/2010/04/08/jobs-if-you-see-a-stylus-or-a-task-manager-they-blew-it/">If you see a task manager&hellip; they blew it</a></p></blockquote>
-
-<p>Implied in the statement <em>‘that&rsquo;s a good thing if you&rsquo;re a developer though’</em> is that what is ‘good’ for the Developer is good for the User. I&rsquo;d argue the reverse is the case; what&rsquo;s good for the <em>User</em> is good for the <em>Developer</em>, because when a <em>User</em> has a better experience, the <em>Developer</em> is likely rewarded.</p>
-
-<p>This isn&rsquo;t to discount the importance of those with products that are aimed at the Technically Minded. There are hundreds of thousands of users of Hacker News, Slashdot, Reddit and the like. But the source licence used in major components of an OS is not a criteria that the overwhelming majority of people really care about.</p>
-
-<p>Those with techie tendencies should not be so arrogant to assume that those outside their circles, should care about the same things that they do. Caring about the value, simplicity, joy and beauty that Mobile Applications can provide to the masses is essential to being an awesome Mobile Developer.</p>
 ]]></content>
   </entry>
   

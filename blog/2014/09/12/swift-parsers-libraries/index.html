@@ -1,0 +1,565 @@
+
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Swift Parsers - Libraries - A Singleton is Deallocated</title>
+	<meta name="author" content="Lawrence Lomax">
+
+	
+	<meta name="description" content="In the previous posts in this series the Parsers have used a hypothetical XMLParsableType Protocol for fetching data from an XML Element. I &hellip;">
+	
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+	<link href="/atom.xml" rel="alternate" title="A Singleton is Deallocated" type="application/atom+xml">
+	<link rel="canonical" href="">
+	<link href="/favicon.png" rel="shortcut icon">
+	<link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+	<!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+	<script async="true" src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+	
+</head>
+
+
+<body>
+	<header id="header" class="inner"><h1><a href="/">A Singleton is Deallocated</a></h1>
+<nav id="main-nav"><ul class="main">
+	<li><a href="/">Blog</a></li>
+	<li><a href="/blog/archives">Archives</a></li>
+</ul>
+</nav>
+<nav id="mobile-nav">
+	<div class="alignleft menu">
+		<a class="button">Menu</a>
+		<div class="container"><ul class="main">
+	<li><a href="/">Blog</a></li>
+	<li><a href="/blog/archives">Archives</a></li>
+</ul>
+</div>
+	</div>
+	<div class="alignright search">
+		<a class="button"></a>
+		<div class="container">
+			<form action="http://google.com/search" method="get">
+				<input type="text" name="q" results="0">
+				<input type="hidden" name="q" value="site:lawrencelomax.github.io">
+			</form>
+		</div>
+	</div>
+</nav>
+<nav id="sub-nav" class="alignright">
+	<div class="social">
+		
+		
+		
+		<a class="twitter" href="http://twitter.com/insertjokehere" title="Twitter">Twitter</a>
+		
+		
+		<a class="github" href="https://github.com/lawrencelomax" title="GitHub">GitHub</a>
+		
+    
+    <a class="pinboard" href="https://pinboard.in/u:insertjokehere" title="Pinboard">Pinboard</a>
+    
+		
+		
+		
+		
+		
+		<a class="rss" href="/atom.xml" title="RSS">RSS</a>
+		
+    
+	</div>
+	<form class="search" action="http://google.com/search" method="get">
+		<input class="alignright" type="text" name="q" results="0">
+		<input type="hidden" name="q" value="site:lawrencelomax.github.io">
+	</form>
+</nav>
+
+</header>
+	
+		
+	
+	<div id="content" class="inner"><article class="post">
+	<h2 class="title">Swift Parsers - Libraries</h2>
+	<div class="entry-content"><p>In the previous posts in this series the Parsers have used a hypothetical <code>XMLParsableType</code> Protocol for fetching data from an XML Element. I previously mentioned that there are myriad libraries and methods for parsing an XML document for iOS. All of the code in this article and previous articles <a href="http://github.com/lawrencelomax/XMLParsable">is available on GitHub</a>.</p>
+
+<p>In this post we&rsquo;re going to take a look at two things:
+1. How <code>XMLParsableType</code> can be implemented using <code>libxml2</code>.
+2. How the various interfaces of <code>libxml2</code> and abstractions in Swift can result in drastically variant performance.</p>
+
+<h2>Parser Interfaces</h2>
+
+<p>The immensely popular Open Source project <a href="http://xmlsoft.org">libxml2</a> is a C Framework bundled with iOS and Mac OS X for parsing XML<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>, with no external dependencies. For our interests it has implementations for a number of <a href="http://en.wikipedia.org/wiki/Java_API_for_XML_Processing">XML Reading interfaces</a>. These are the <a href="http://en.wikipedia.org/wiki/Document_Object_Model">DOM</a>, <a href="http://en.wikipedia.org/wiki/Simple_API_for_XML">SAX</a> and <a href="http://xmlsoft.org/xmlreader.html">Reader</a> interfaces.</p>
+
+<p>If I were to build these interfaces in an Application I&rsquo;d want to be cautious to not prematurely optimise the XML Document reading process. Even if there are any substantial gains to XML Parsing performance when building implementations of the <code>XMLParsableType</code>, the gains may not be that significant to the Application as a whole. If the implementations were to be made from scratch it would be worth writing one simple implementation and the swapping it with a more performant implementation if-and-when it is seen to be impacting the performance of the Application at large. However, this is a fun exercise to play with Swift and Xcode 6 as well as getting to grips with the <code>libxml2</code> library.</p>
+
+<h3>DOM</h3>
+
+<p>A <a href="http://en.wikipedia.org/wiki/Document_Object_Model">DOM (Document Object Model) or Tree Interface</a> to XML represents all of the Elements within an XML Document as a tree of connected nodes. This often means that the whole of an XML Document is read into memory and is navigable by following relationships in a data structure. By exposing the XML Document as a fully realized data structure, a DOM Interface very convenient to navigate.</p>
+
+<p>By loading all parts of the XML Document into memory the memory usage is proportional to the size of the XML Document. This will be a low cost for small documents, but for larger documents this can result in a substantial amount of memory to allocate<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>.</p>
+
+<p>The performance of a DOM parser relative to others is largely dependent on the number of times that the same DOM is traversed and the amount of ignored data in the DOM. If the DOM is repeatedly traversed, then the up-front cost of building the tree will amortise later navigation of the data structure. However, if there are only a few Elements and Text nodes that need to be extracted from a large document, the resources used to read the unread parts of the tree are wasted.</p>
+
+<h3>SAX</h3>
+
+<p>As a DOM interface requires that the whole Tree of Elements is in memory an interface to XML exists that streams data out of the document on a per-node basis. The <a href="http://en.wikipedia.org/wiki/Simple_API_for_XML">SAX</a> interface traverses all of the nodes in sequence, allowing data to be extracted from a stream of callbacks. This means that the entirety of the document doesn&rsquo;t have to be in memory in order to read a document. This can be very desirable in resource constrained environments, or when the document to be parsed is very large.</p>
+
+<p>Unfortunately, this comes with drawbacks. The immediate concern for this article is that a callback based interface can be inconvenient as it results in temporary state being created for book-keeping purposes. A data-structure approach may be able to store all of the bookkeeping information in local variables and function arguments, resulting in simpler implementations that use the recursion and the call stack instead of allocated data structures.</p>
+
+<h3>Reader</h3>
+
+<p>The <a href="http://xmlsoft.org/xmlreader.html">Reader Interface</a> is very similar to the SAX interface, with a cursor based way of traversing the tree, rather than callbacks. This can be thought of as the difference between a push and pull driven stream of data. This makes the interface significantly easier to work with than SAX.</p>
+
+<h2>Swift Implementation</h2>
+
+<p>With a little context to the types of parsing interfaces that are available in <code>libxml2</code>, it help us to understand how they can be used in Swift. All of the implementations of the interface will return a <a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsable/XML/XMLNavigatingParser.swift#L12"><code>Result&lt;XMLParsableType&gt;</code></a> of the root node in the XML Document, with the XML Document read from either a <a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsable/XML/XMLNavigatingParser.swift#L13">File or an <code>NSData</code> representation of document String</a>.</p>
+
+<h3>C Structures in Swift</h3>
+
+<p><a href="http://xmlsoft.org"><code>libxml2</code></a>  Open Source implementation of is a C library, the C functions can be imported into Swift using an Bridging Header and used as if they are Swift functions with <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/BuildingCocoaApps/InteractingWithCAPIs.html#//apple_ref/doc/uid/TP40014216-CH8-XID_11">usual rules of interacting with C API</a>. As Working with the structures requires quite a bit of unwrapping and manipulating &lsquo;Unsafe&rsquo; containers that wrap all C structures in Swift. Again, a strong reason to move up to the Swift level of abstraction.</p>
+
+<p>Direct access of C structure members is not permitted in Swift as Swift does not know about the shape of structures. Any access of structure members will need to be wrapped in C/Objective-C functions and imported in the Bridging Header.</p>
+
+<p>For example, this function will extract the <code>content</code> member from a Node:</p>
+
+<pre><code>NSString * LibXMLDOMGetText(xmlNodePtr node)
+{
+    NSCParameterAssert(node != NULL);
+    NSCParameterAssert(node-&gt;type == XML_TEXT_NODE);
+
+    const char *name = (const char *) node-&gt;content;
+    NSCParameterAssert(name != NULL);
+
+    return [NSString stringWithCString:name encoding:NSUTF8StringEncoding];
+}
+</code></pre>
+
+<p>These functions can then be used in Swift when they are exposed in an <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/BuildingCocoaApps/MixandMatch.html">Umbrella or Bridging Header</a>.</p>
+
+<h3>GOTO Swift</h3>
+
+<p>I like to follow a principle when developing software, regardless of the languages and frameworks used:</p>
+
+<blockquote><p><em>&ldquo;Get to the highest level of Abstraction that makes sense, as early as possible. Don&rsquo;t think about the overhead of the abstraction until you can prove that it is detrimental to performance&rdquo;</em></p></blockquote>
+
+<p><code>libxml2</code> sits very far down the ladder of Abstraction, so I consider it to be ideal to pull data from <code>libxml2</code> into a higher level of abstraction as soon as possible. This makes manipulating and reading XML data in Swift significantly easier. Additionally, this means skipping Objective-C<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup> and using elements of the <a href="http://swifter.natecook.com">Swift Standard Library</a> along with bridged Cocoa libraries to get stuff done. Swift provides us with some abstractions that are superior to the Objective-C equivalents, there&rsquo;s no need for an intermediate stage unless it is needed. The Strong guarantees that Swift provides us are also present in the components of the Standard Library.</p>
+
+<p>Conveniently, Xcode will parse headers with enumerations declared with the <code>NS_ENUM</code> macro:</p>
+
+<pre><code>typedef NS_ENUM(NSInteger, LibXMLReaderType) {
+    LibXMLReaderTypeNONE = XML_READER_TYPE_NONE,
+    LibXMLReaderTypeELEMENT = XML_READER_TYPE_ELEMENT,
+    LibXMLReaderTypeATTRIBUTE = XML_READER_TYPE_ATTRIBUTE,
+    LibXMLReaderTypeTEXT = XML_READER_TYPE_TEXT,
+    LibXMLReaderTypeCDATA = XML_READER_TYPE_CDATA,
+    LibXMLReaderTypeENTITY_REFERENCE = XML_READER_TYPE_ENTITY_REFERENCE,
+    LibXMLReaderTypeENTITY = XML_READER_TYPE_ENTITY,
+    LibXMLReaderTypePROCESSING_INSTRUCTION = XML_READER_TYPE_PROCESSING_INSTRUCTION,
+    LibXMLReaderTypeCOMMENT = XML_READER_TYPE_COMMENT,
+    LibXMLReaderTypeDOCUMENT = XML_READER_TYPE_DOCUMENT,
+    LibXMLReaderTypeDOCUMENT_TYPE = XML_READER_TYPE_DOCUMENT_TYPE,
+    LibXMLReaderTypeDOCUMENT_FRAGMENT = XML_READER_TYPE_DOCUMENT_FRAGMENT,
+    LibXMLReaderTypeNOTATION = XML_READER_TYPE_NOTATION,
+    LibXMLReaderTypeWHITESPACE = XML_READER_TYPE_WHITESPACE,
+    LibXMLReaderTypeSIGNIFICANT_WHITESPACE = XML_READER_TYPE_SIGNIFICANT_WHITESPACE,
+    LibXMLReaderTypeEND_ELEMENT = XML_READER_TYPE_END_ELEMENT,
+    LibXMLReaderTypeEND_ENTITY = XML_READER_TYPE_END_ENTITY,
+    LibXMLReaderTypeXML_DECLARATION = XML_READER_TYPE_XML_DECLARATION
+};
+</code></pre>
+
+<p>This is a redeclaration of libxml enum types, with a naming convention that works well in Swift:</p>
+
+<pre><code>switch LibXMLDOMGetElementType(child) {
+case .ELEMENT_NODE:
+    children.append(LibXMLNodeParserDOM.createTreeRecursive(child))
+case .TEXT_NODE:
+    text = LibXMLDOMGetText(child)
+default:
+    break
+}
+</code></pre>
+
+<p>Swift provides the <a href="http://swifter.natecook.com/protocol/SequenceType/"><code>SequenceType</code></a> and <a href="http://swifter.natecook.com/protocol/GeneratorType/"><code>GeneratorType</code></a> protocols to allow us to use the <code>for ... in ...</code> syntax, or use the higher-level <a href="http://swifter.natecook.com/func/map/"><code>map</code></a>, <a href="http://swifter.natecook.com/func/find/"><code>find</code></a> and <a href="http://swifter.natecook.com/func/filter/"><code>filter</code></a> functions. We can define a <code>Sequence</code> type that exposes the Child nodes of an XML Node:</p>
+
+<pre><code>typealias LibXMLDOMNodeSequence = SequenceOf&lt;xmlNodePtr&gt;
+
+internal class func childrenOfNode(node: xmlNodePtr) -&gt; LibXMLDOMNodeSequence {
+    var nextNode = LibXMLDOMGetChildren(node)
+    let generator: GeneratorOf&lt;xmlNodePtr&gt; = GeneratorOf {
+        if (nextNode == nil) {
+            return nil
+        }
+
+        let currentNode = nextNode
+        nextNode = LibXMLDOMGetSibling(nextNode) 
+        return currentNode
+    }
+
+    return SequenceOf(generator)
+}
+</code></pre>
+
+<p>By moving enumeration to a  <code>Sequence</code> type, consumers of the DOM don&rsquo;t need to be concerned with how the list of Child Nodes is navigated.</p>
+
+<h2>Implementation 1: Swift Structure from libxml2 DOM</h2>
+
+<p>The first thing that springs to mind is that given a DOM in <code>libxml</code>, some of the data can be pulled out into a pure Swift data structure<sup id="fnref:4"><a href="#fn:4" rel="footnote">4</a></sup>. This Swift data structure will contain all of the relationships and Text Nodes, whilst implementing the previously defined <code>XMLParsableType</code>.</p>
+
+<pre><code>public struct XMLNode: XMLParsableType {
+    public let name: String
+    public let text: String?
+    public let children: [XMLNode]
+
+    public func parseChildren(elementName: String) -&gt; [XMLNode] {
+        return self.children.filter { node in
+            return node.name == elementName
+        }
+    }
+
+    public func parseText() -&gt; String? {
+        return self.text
+    }
+}
+</code></pre>
+
+<p>The <code>childrenOfNode</code> function is placed in the <code>LibXMLDOM</code> class to separate the concerns of how the Tree is built into a data structure and how the DOM is navigated. By using this function that returns a  <code>Sequence`` and a number of other wrapper functions (prefixed with</code>LibXMLDOM&#8220;`) returning Swift types, the construction of the tree can be defined recursively:</p>
+
+<pre><code>private class func createTreeRecursive(node: xmlNodePtr) -&gt; XMLNode {
+    let name: String! = LibXMLDOMGetName(node)
+    var text: String?
+
+    var children: [XMLNode] = []
+
+    for child in LibXMLDOM.childrenOfNode(node) {
+      switch LibXMLDOMGetElementType(child) {
+      case .ELEMENT_NODE:
+        children.append(LibXMLNodeParserDOM.createTreeRecursive(child))
+      case .TEXT_NODE:
+        text = LibXMLDOMGetText(child)
+      default:
+        break
+      }
+    }
+
+    return XMLNode(name: name, text: text, children: children)
+}
+</code></pre>
+
+<p>That&rsquo;s pretty much it, there&rsquo;s a little more in terms of plumbing and error handling, but its not too hard to take an XML Document from <code>libxml2</code> and get the data into Swift.</p>
+
+<h2>Implementation 2: Swift Structure from libxml2 Buffered Reader</h2>
+
+<p>Looking at the first this means that the XML Document is built twice. Once to read the document into <code>libxml2</code> and the second to extract out the Text Nodes and Element Names into a Tree of Swift data structures. The costs of allocating a bunch of Swift structures and objects could be significant so there will likely be a performance benefit to only building the tree once.</p>
+
+<p><a href="http://xmlsoft.org/xmlreader.html">The Reader interface for <code>libxml2</code></a> is an interface to the XML document that will incrementally read each component of the document in a depth-first fashion. The Current Node is repeatedly advanced by calling the <a href="http://xmlsoft.org/html/libxml-xmlreader.html#xmlTextReaderRead"><code>xmlTextReaderRead</code></a> function until the end of the file has been reached, or an Error has occurred in parsing. Using the Reader, a Swift Data structure can be built without having to create a DOM in <code>libxml2</code>. It is possible however, that the overhead associated by advancing through the <code>Reader</code> buffer could be greater than the cost of allocating the DOM in <code>libxml2</code></p>
+
+<p>A Lazy <code>Sequence</code> of nodes can be made for the <a href="http://xmlsoft.org/xmlreader.html">Reader interface</a> in the same way as the <a href="http://xmlsoft.org/html/libxml-tree.html">Tree interface</a>. The <code>Sequence</code> is made from the more fundamental <code>Generator</code>:</p>
+
+<pre><code>internal typealias ReaderGenerator = GeneratorOf&lt;(xmlTextReaderPtr, LibXMLReaderMode)&gt;
+
+private class func makeRecursiveGenerator(reader: xmlTextReaderPtr) -&gt; ReaderGenerator {
+    return GeneratorOf {
+        if reader == nil {
+            return nil
+        }
+
+        let result = LibXMLReaderMode.forceMake(xmlTextReaderRead(reader))
+        switch result {
+        case .CLOSED: return nil
+        case .EOF: return nil
+        case .ERROR: return nil
+        case .INITIAL: return nil
+        default: return (reader, result)
+        }
+    }
+}
+</code></pre>
+
+<p>With the Reader approach, an error can occur at any time and therefore needs to be handled during the reading process. This is passed back in a tuple of both the pointer to the current node and the status of the read operation. It is then wrapped in a Sequence for the Higher-Order operations and the pointer must be advanced one time on the first read:</p>
+
+<pre><code>internal typealias ReaderSequence = SequenceOf&lt;(xmlTextReaderPtr, LibXMLReaderMode)&gt;
+private class func wrapInSequence(reader: xmlTextReaderPtr) -&gt; Result&lt;ReaderSequence&gt; {
+    if (reader == nil) {
+        return Result.Error(self.error("Could Not Parse Document, no root node"))
+    }
+
+    var generator = LibXMLReader.makeRecursiveGenerator(reader)
+    if generator.next() == nil {
+        xmlFreeTextReader(reader)
+        return Result.Error(self.error("Could Not Parse Document, no first node"))
+    }
+
+    return Result.value(SequenceOf(generator))
+}
+</code></pre>
+
+<p>In the <code>LibXMLReader</code> class, a <code>Context</code> class is created to dispose the manually memory managed <code>libxml</code> structures:</p>
+
+<pre><code>internal final class LibXMLReader {
+    internal struct Context {
+        let reader: xmlTextReaderPtr
+        let sequence: ReaderSequence
+        var hasFreed: Bool
+
+        init (reader: xmlTextReaderPtr, sequence: ReaderSequence) {
+            self.reader = reader
+            self.sequence = sequence
+            self.hasFreed = false
+        }
+
+        func dispose() {
+            if !self.hasFreed {
+                xmlFreeTextReader(self.reader)
+            }
+        }
+}
+</code></pre>
+
+<p>The Tree can be built up using a Recursive function, passing through the <code>ReaderSequence</code></p>
+
+<pre><code>private class func parseRecursive(reader: xmlTextReaderPtr, _ sequence: ReaderSequence) -&gt; Result&lt;XMLNode&gt; {
+    if LibXMLReaderType.forceMake(reader) != .ELEMENT {
+        let realType = LibXMLReaderGetElementTypeString(LibXMLReaderType.forceMake(reader))
+        return Result.Error(LibXMLReader.error("Recursive Node Parse Requires an ELEMENT, got \(realType)"))
+    }
+
+    var name = LibXMLReaderGetName(reader)
+    var text: String?
+    var children: [XMLNode] = []
+
+    if LibXMLReaderIsEmpty(reader) {
+        return Result.value(XMLNode(name: name, text: text, children: children))
+    }
+
+    for (reader, mode) in sequence {
+        let type = LibXMLReaderType.forceMake(xmlTextReaderNodeType(reader))
+        let typeString = LibXMLReaderGetElementTypeString(type)
+        let modeString = LibXMLReaderGetReaderMode(mode)
+
+        switch type {
+            case .TEXT:
+                text = LibXMLReaderGetText(reader);
+            case .ELEMENT:
+                let childResult = self.parseRecursive(reader, sequence)
+                switch childResult {
+                    case .Error(let error): return childResult
+                    case .Value(let box): children.append(childResult.toOptional()!)
+                }
+            case .END_ELEMENT:
+                assert(name == LibXMLReaderGetName(reader), "BEGIN AND END NOT MATCHED")
+                return Result.value(XMLNode(name: name, text: text, children: children))
+            default:
+                break
+        }
+    }
+
+    return Result.Error(LibXMLReader.error("I don't know how this became exhausted, unbalanced begin and end of document"))
+}
+</code></pre>
+
+<p>There&rsquo;s a little more in terms of book-keeping as the End and the Beginning of a nested element need to be matched up, but it should look very similar to the DOM based approach.</p>
+
+<h2>Implementation 3: Navigate the libxml2 DOM with Swift</h2>
+
+<p>The Building of the tree as a fully realized Swift data structure is a simple implementation and all the work is done up front, but it certainly isn&rsquo;t the least resource intensive. In the previous implementation <code>String</code>s for the Text and Element Name of an XML Element are created regardless of whether they are used or not. Even if the use of the <code>Reader</code> interface results in a faster implementation than the dual-tree interface of the first Implementation, redundancy in data that is read could mean a lot of wasted effort.</p>
+
+<p>There&rsquo;s no reason that we can&rsquo;t just wrap a whole <code>libxml2</code> Tree structure in a Class implementing <code>XMLParsableType</code> that knows how to fetch the Text and Children of an Element from a current Node Pointer:</p>
+
+<pre><code>public final class LibXMLNavigatingParserDOM: XMLNavigatingParserType, XMLParsableType {
+    private let node: xmlNodePtr
+    private let context: LibXMLDOM.Context?
+
+    internal init (node: xmlNodePtr) {
+        self.node = node
+    }
+
+    internal init (context: LibXMLDOM.Context) {
+        self.context = context
+        self.node = context.rootNode
+    }
+
+    deinit {
+        self.context?.dispose()
+    }
+
+    public func parseChildren(childTag: String) -&gt; [LibXMLNavigatingParserDOM] {
+        let foundChildren = filter(LibXMLDOM.childrenOfNode(self.node)) { node in
+            LibXMLDOMGetElementType(node) == LibXMLElementType.ELEMENT_NODE &amp;&amp; LibXMLDOMElementNameEquals(node, childTag)
+        }
+        return foundChildren.map { LibXMLNavigatingParserDOM(node: $0) }
+    }
+
+    public func parseText() -&gt; String? {
+        let foundChild = findSeq(LibXMLDOM.childrenOfNode(self.node)) { node in
+            return LibXMLDOMGetElementType(node) == LibXMLElementType.TEXT_NODE
+        }
+        return foundChild &gt;&gt;- LibXMLDOMGetText
+    }
+}
+</code></pre>
+
+<p>The <code>LibXMLDOM.Context</code> is just a internal class responsible for cleaning up the manual-memory-managed <code>libxml2</code> DOM document when the root node is deallocated:</p>
+
+<pre><code>internal final class LibXMLDOM {
+    struct Context {
+        let document: xmlDocPtr
+        let rootNode: xmlNodePtr
+
+        init (document: xmlDocPtr, rootNode: xmlNodePtr){
+            self.document = document
+            self.rootNode = rootNode
+        }
+
+        func dispose() {
+            if self.rootNode != nil {
+                xmlFreeDoc(self.document)
+            }
+        }
+    }
+}
+</code></pre>
+
+<p>Still very simple and that&rsquo;s about all that is required to implement <code>XMLParsableType</code> protocol. The creation of the Swift <code>String</code>s for the Text of an Element are deferred until they are actually needed.</p>
+
+<h2>Implementation 4: Navigate with a Reader</h2>
+
+<p>In Implementation 2, a <code>Reader</code> was used to navigate the XML Document and extract all of the Elements and Text Nodes as a Swift Data structure. Instead of building a <code>Swift</code> data structure, it should be possible to extract out Text from <code>Reader</code> without needing a secondary data structure at all. This should work well in circumstances where the amount of data extracted from the whole document is minimal.</p>
+
+<p>This will result in a substantially different implementation to the previous three and will be worth implementing at a later date. It is currently unimplemented in the <a href="http://github.com/lawrencelomax/XMLParsable"><code>XMLParsable</code></a> project.</p>
+
+<h2>Testing</h2>
+
+<p>One of the great aspects of building an XML Parser in this way is that the implementations are trivial to swap out and can be tested against for correctness against the same Parsing Code. Additionally, we can use the new Performance Testing features of Xcode 6 to see how the performance varies in these differing implementations. The code is all available on <a href="http://github.com/lawrencelomax/XMLParsable">GitHub for your viewing pleasure</a>.</p>
+
+<p>The correctness testing is relatively simple, just run the same suite of tests over a fixed XML resource and verify that all of the properties in the Model are set to the values in the resource.</p>
+
+<p><img class="right" src="/images/posts/swift_parsers/unit_results.png" title="Unit Test Results: Great Success" alt="Unit Test Results: Great Success"></p>
+
+<p>Xcode 6 makes performance testing easy too. The same XML parse to Model decode task can be stuck inside a <a href="https://developer.apple.com/library/prerelease/ios/documentation/DeveloperTools/Conceptual/testing_with_xcode/testing_3_writing_test_classes/testing_3_writing_test_classes.html#//apple_ref/doc/uid/TP40014132-CH4-SW8">measurement block</a> and repeated a number of times to eliminate any performance fluctuations of the test host. The Performance Tests should be designed in such a way that they can expose some the performance characteristics of each implementation with a different data set. One of these characteristics is that the amount of unused or redundant data in a document can massively impact performance.</p>
+
+<p>The small suite of performance tests in <a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsableTests/Performance/XMLPerformanceTests.swift"><code>XMLParsable</code></a> test the same source data on each of the implementations on a number of axis, using <a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsableTests/Fixtures/Fixtures.swift#L25"><code>NSData</code></a> vs. <a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsableTests/Fixtures/Fixtures.swift#L21">using Files</a> and a <a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsableTests/Fixtures/zoo.xml">small XML file</a> vs. an <a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsableTests/Fixtures/zoo_highredundancy.xml">XML file with a lot of redundant data</a>:</p>
+
+<p><img class="right" src="/images/posts/swift_parsers/performance_results.png" title="Performance Results" alt="Performance Results"></p>
+
+<p>Some observations from the results:</p>
+
+<ul>
+<li>There isn&rsquo;t a huge difference between <code>NSData</code> and reading from a file. This suggests that File I/O isn&rsquo;t much of a bottleneck. There won&rsquo;t be any noticeable difference between decoding XML from a File, or from <code>NSData</code> returned from a HTTP request.</li>
+<li>When a small XML document is used, there&rsquo;s not much of a performance difference between all of the implementations. There may be some other bottlenecks worth identifying in the system, but the time taken to run 10 iterations is very small.</li>
+<li>The two implementations that build a Tree of Nodes in Swift have order-of-magnitude worse performance than the DOM-wrapper in the XML document with lots of redundant data. This highlights the differences in performance between building a pure Swift data structure and keeping the data in <code>libxml</code> itself. This doesn&rsquo;t make Swift slow by any means, it just highlights the tradeoff of abstractions &amp; safety against raw performance. Moving pointers around a region of purpose-allocated memory will always be faster than a runtime that checks types, reference counts and dereferences pointers across discretely allocated data structures.</li>
+</ul>
+
+
+<h2>Conclusion</h2>
+
+<p>The results prove that the performance characteristics of different implementations of an XML Parser can be exposed when using different data sets. The small gap in performance between implementations widens as the size of the document increases. This is likely due to the cost of object and structure allocations. Reducing allocations in <code>libxml2</code> or Swift will squeezes out more performance.</p>
+
+<p>I&rsquo;d probably opt to use &lsquo;Implementation 3&rsquo;, which wraps the original <code>libxml</code> DOM in the <code>XMLParsableType</code> protocol. It is by far the simplest and has very good performance. Even when resources are at a premium it can be better to opt for the simpler solution, even if it means sacrificing a little performance. Maintainability and understandability are important qualities in code, so that the code can be revisited and revised by others and understandable for years to come. As &lsquo;Implementation 3&rsquo; is the most performant and simplest to implement, hard to argue that it is the one to go for!</p>
+
+<p>I hope you&rsquo;ve enjoyed this series of posts, I&rsquo;d love to hear your thoughts and comments!</p>
+
+<hr />
+
+<p>For this reason the Event-Based Streaming SAX parser could be used instead, the whole document need not be read into memory at the expense of a more troublesome interface. Eventually a compromise was found with the StAX parser, buffering the input document with a Cursorable navigation mechanism.</p>
+<div class="footnotes">
+<hr/>
+<ol>
+<li id="fn:1">
+<p><a href="https://developer.apple.com/library/mac/documentation/cocoa/reference/foundation/classes/nsxmlparser_class/reference/reference.html">NSXMLParser</a> has been part of Cocoa for many years now and would also be suitable, however it only implements an event-based <code>SAX</code>-style interface. While it is certainly possible to make a <code>XMLParserType</code> implementation using NSXMLParser, I won&rsquo;t consider it for now.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
+<li id="fn:2">
+<p>I cut my programming teeth on Java. When consuming an XML Document of greater than a MB or so the JVM Heap could get hammered when using a DOM style parser. This could be hugely problematic when intertwined with a Garbage Collector. I wonder if the ubiquity of JSON Parsers that output to a fully reified Data Structure, rather than Event Based parsers has anything to do with the increased availability of resources since JSON came into vogue.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<li id="fn:3">
+<p>Ok I lied, there I use a lot of Bridging functions that use <code>NSString</code>, but an <code>NSString</code> is instantly converted to a Swift <code>String</code><a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
+<li id="fn:4">
+<p>This is the perfect candidate for usage of a <code>struct</code> instead of a <code>class</code>. We don&rsquo;t need for this to be subclassed, or any disposal semantics in <code>dealloc</code>. Reference counting is totally unnecessary as this structure represents an Immutable value. I&rsquo;d love to take a look at the performance of passing structs around, <a href="https://devforums.apple.com/message/990361#990361">it looks like Array and Dictionary struct types use copy-on-write</a> but I have no idea if this applies to User defined structs. <a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+</ol>
+</div>
+
+</div>
+
+
+<div class="meta">
+	<div class="date">
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-09-12T22:30:03+01:00" pubdate data-updated="true"></time></div>
+	<div class="tags">
+
+
+	<a class='category' href='/blog/categories/backends/'>backends</a>, <a class='category' href='/blog/categories/functional/'>functional</a>, <a class='category' href='/blog/categories/ios/'>ios</a>, <a class='category' href='/blog/categories/objective-c/'>objective-c</a>, <a class='category' href='/blog/categories/parsers/'>parsers</a>, <a class='category' href='/blog/categories/swift/'>swift</a>
+
+
+</div>
+	
+	<div class="comments"><a href="#disqus_thread">Comments</a></div>
+	
+</div>
+</article>
+
+	<div class="share">
+	<div class="addthis_toolbox addthis_default_style ">
+		
+		
+		<a class="addthis_button_tweet"></a>
+		
+		
+		
+	</div>
+	
+</div>
+
+
+
+<section id="comment">
+    <h2 class="title">Comments</h2>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+</section>
+</div>
+	<footer id="footer" class="inner">Copyright &copy; 2014
+
+    Lawrence Lomax
+
+</footer>
+	<script src="/javascripts/slash.js"></script>
+<script src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+	$('.fancybox').fancybox();
+})(jQuery);
+</script> <!-- Delete or comment this line to disable Fancybox -->
+
+
+<script type="text/javascript">
+      var disqus_shortname = 'asingletonisdeallocated';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-libraries/';
+        var disqus_url = 'http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-libraries/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//go.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+</body>
+</html>

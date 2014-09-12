@@ -81,30 +81,36 @@
 	
 	<div id="content" class="inner"><article class="post">
 	<h2 class="title">Swift Parsers - Imperative</h2>
-	<div class="entry-content"><p>In the <a href="/blog/2014/09/11/swift-parsers-introduction/">previous post</a> I talked about some of the possible requirements for a Parser that extracts data from a Serialization Format and places it in a Language-Native Model. In this post I&rsquo;ll cover how an XML Parser for a Model Object can be built using some of the familiar Imperative features of Swift.</p>
+	<div class="entry-content"><p>In the <a href="/blog/2014/09/12/swift-parsers-introduction/">previous post</a> I talked about some of the possible requirements for a Parser that extracts data from a Serialization Format and places it in a Language-Native Model. In this post I&rsquo;ll cover how an XML Parser for a Model Object can be built using some of the familiar Imperative features of Swift. Sample Code is <a href="http://github.com/lawrencelomax/XMLParsable">available on GitHub</a>.</p>
 
 <h3>Model and XML</h3>
 
-<p>Let&rsquo;s define a hypothetical XML that we wish to parse:</p>
+<p>Let&rsquo;s define a <a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsableTests/Fixtures/zoo.xml">hypothetical XML</a> that we wish to parse:</p>
 
 <pre><code>&lt;zoo&gt;
     &lt;animals&gt;
         &lt;animal&gt;
-            &lt;type&gt;cat&lt;/type&gt;
-            &lt;name&gt;grumpy&lt;/name&gt;
+            &lt;kind&gt;cat&lt;/kind&gt;
+            &lt;nested_nonsense&gt;
+                &lt;name&gt;grumpy&lt;/name&gt;
+            &lt;/nested_nonsense&gt;
             &lt;url&gt;http://en.wikipedia.org/wiki/Grumpy_Cat&lt;/url&gt;
         &lt;/animal&gt;
         &lt;animal&gt;
-            &lt;type&gt;cat&lt;/type&gt;
-            &lt;name&gt;long&lt;/name&gt;
+            &lt;kind&gt;cat&lt;/kind&gt;
+            &lt;nested_nonsense&gt;
+                &lt;name&gt;long&lt;/name&gt;
+            &lt;/nested_nonsense&gt;
             &lt;url&gt;http://knowyourmeme.com/memes/longcat&lt;/url&gt;
         &lt;/animal&gt;
         &lt;animal&gt;
-            &lt;type&gt;dog&lt;/type&gt;
-            &lt;name&gt;i have no idea what i'm doing&lt;/name&gt;
+            &lt;kind&gt;dog&lt;/kind&gt;
+            &lt;nested_nonsense&gt;
+                &lt;name&gt;i have no idea what i'm doing&lt;/name&gt;
+            &lt;/nested_nonsense&gt;
             &lt;url&gt;http://knowyourmeme.com/memes/i-have-no-idea-what-im-doing&lt;/url&gt;
         &lt;/animal&gt;
-    &lt;/animal&gt;
+    &lt;/animals&gt;
     &lt;facilities&gt;
         &lt;toilet&gt;42&lt;/toilet&gt;
         &lt;disabled_parking&gt;true&lt;/disabled_parking&gt;
@@ -118,27 +124,27 @@
 &lt;/zoo&gt;
 </code></pre>
 
-<p>The Model includes the parts of the XML that our Application cares about and ignores others:</p>
+<p><a href="https://github.com/lawrencelomax/XMLParsable/blob/master/XMLParsableTests/Fixtures/Zoo.swift">The Model</a> includes the parts of the XML that our Application cares about and ignores others:</p>
 
-<pre><code>public struct Animal {
-  let type: String
-  let name: String
-  let url: NSURL
+<pre><code>public struct Animal: XMLDecoderType {
+    public let kind: String
+    public let name: String
+    public let url: NSURL
 }
 
 public struct Zoo {
-  let toiletCount: Int
-  let disabledParking: Bool
-  let drainage: String
-  let animals: [Animal]
- }
+    let toiletCount: Int
+    let disabledParking: Bool
+    let drainage: String
+    let animals: [Animal]
+}
 </code></pre>
 
 <p>This is simple and immutable, the Parser forms part of the backend for the User Interface to consume. There&rsquo;s no reason for the User Interface to be able to manipulate these Models directly.</p>
 
 <h3>An Interface to XML</h3>
 
-<p>Stubbing a Protocol or Interface is a great way of getting to grips with the problem that needs to be solved. It also helps to determine what is necessary for to implement, as well as the details that can be ignored to solve the problem at hand. There is also a bunch of <a href="">previously laid out requirements to be considered</a></p>
+<p>Stubbing a Protocol or Interface is a great way of getting to grips with the problem that needs to be solved. It also helps to determine what is necessary for to implement, as well as the details that can be ignored to solve the problem at hand. There is also a bunch of <a href="/blog/2014/09/12/swift-parsers-introduction/">previously laid out requirements to be considered</a></p>
 
 <p>In parsing this XML<sup id="fnref:1"><a href="#fn:1" rel="footnote">1</a></sup>. I&rsquo;ve made a few assumptions:</p>
 
@@ -153,8 +159,8 @@ public struct Zoo {
 <p>With those assumptions in mind, a Protocol for defining how data can be extracted from a Parsable XML Node can be made:</p>
 
 <pre><code>public protocol XMLParsableType {
-  func parseChildren(childTag: String) -&gt; [Self]
-  func parseText() -&gt; String?
+    func parseChildren(childTag: String) -&gt; [Self]
+    func parseText() -&gt; String?
 }
 </code></pre>
 
@@ -162,12 +168,12 @@ public struct Zoo {
 
 <blockquote><p><em>&ldquo;An XML Parsable has an ordered collection of Child Parsables and may have an associated String of Text&rdquo;</em></p></blockquote>
 
-<p>Protocols are permitted to have a recursive definition, using the <code>Self</code> placeholder type. How and where the underlying XML document is stored is left to the implementing class/struct/enum<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. As we will see in <a href="">Part 4</a>, obtaining a child may be implemented by traversing a fully reified data structure, or moving a cursor partially visible representation of the structure.</p>
+<p>Protocols are permitted to have a recursive definition, using the <code>Self</code> placeholder type. How and where the underlying XML document is stored is left to the implementing class/struct/enum<sup id="fnref:2"><a href="#fn:2" rel="footnote">2</a></sup>. As we will see in <a href="/blog/2014/09/12/swift-parsers-libraries/">Part 4</a>, obtaining a child may be implemented by traversing a fully reified data structure, or moving a cursor partially visible representation of the structure.</p>
 
-<p>As well as a representation of the Data Serialization itself, there needs to be a consistent way of defining that a Model can extract out values of Data Serialization. The entry point can be defined in terms of a decode protocol<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup> that the Model structures should implement:</p>
+<p>As well as a representation of the Data Serializations itself, there needs to be a consistent way of defining that a Model can extract out values of Data Serialization. The entry point can be defined in terms of a decode protocol<sup id="fnref:3"><a href="#fn:3" rel="footnote">3</a></sup> that the Model structures should implement:</p>
 
 <pre><code>public protocol XMLDecoderType {
-  class func decode&lt;X: XMLParsableType&gt;(xml: X) -&gt; Result&lt;Self&gt;
+    class func decode&lt;X: XMLParsableType&gt;(xml: X) -&gt; Result&lt;Self&gt;
 }
 </code></pre>
 
@@ -182,8 +188,8 @@ public struct Zoo {
 <p>Moving to a Safe Swift world, return of an <code>NSError</code> and a possible value can be encapsulated in the same value using an <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Enumerations.html#//apple_ref/doc/uid/TP40014097-CH12-XID_227">Enumeration with Associated Values</a>, rather <a href="https://www.google.co.uk/search?client=safari&amp;rls=en&amp;q=nserror+dereference+pointer&amp;ie=UTF-8&amp;oe=UTF-8&amp;gfe_rd=cr&amp;ei=3MEOVNesH4G28AOjw4D4Bw#rls=en&amp;q=nserror+dereference+pointer">dereferencing pointers</a>. This is the <code>Result</code> with the same availability semantics as an <code>Optional</code>, with additional failure information provided with an <code>NSError</code> in the failure case:</p>
 
 <pre><code>public enum Result&lt;V&gt; {
-  case Error(NSError)
-  case Value(Box&lt;V&gt;)
+    case Error(NSError)
+    case Value(Box&lt;V&gt;)
 }
 </code></pre>
 
@@ -198,18 +204,18 @@ public struct Zoo {
 
 <p>Failing-Fast was outlined as a potential feature of a Parser in the previous post, the implementation of an XML-to-Animal decoding function will need to take this into account. The following Imperative approach shows how it may be possible to extract a <code>Result&lt;Animal&gt;</code> from an <code>XMLParsableType</code>:</p>
 
-<pre><code>  static func decode&lt;X: XMLParsableType&gt;(xml: X) -&gt; Result&lt;Animal&gt; {
-    if let type = XMLParser.parseChildText("type")(xml: xml).toOptional() {
-      if let name = XMLParser.parseChildText("name")(xml: xml).toOptional() {
-        if let urlString = XMLParser.parseChildText("url")(xml: xml).toOptional() {
-          return Result.value(self(type: type, name: name, url: NSURL.URLWithString(urlString)) )
+<pre><code>static func decode&lt;X: XMLParsableType&gt;(xml: X) -&gt; Result&lt;Animal&gt; {
+    if let kind = XMLParser.parseChildText("kind")(xml: xml).toOptional() {
+        if let name = XMLParser.parseChildText("name")(xml: xml).toOptional() {
+            if let urlString = XMLParser.parseChildText("url")(xml: xml).toOptional() {
+                return Result.value(self(type: type, name: name, url: NSURL.URLWithString(urlString)) )
+            }
+            return Result.Error(decodeError("Could not parse 'urlString' as a String"))
         }
-        return Result.Error(decodeError("Could not parse 'urlString' as a String"))
-      }
-      return Result.Error(decodeError("Could not parse 'name' as a String"))
+        return Result.Error(decodeError("Could not parse 'name' as a String"))
     }
-    return Result.Error(decodeError("Could not parse 'type' as a String"))
-  }
+    return Result.Error(decodeError("Could not parse 'kind' as a String"))
+}
 </code></pre>
 
 <p>This doesn&rsquo;t look great. The nesting is terrible, the Failure and Success conditions are separated around the conditional. In this case, there are only three values, a Model with more properties would make the nesting significantly worse. In Objective-C this can be better tackled by returning early on failure, however this would require lots of force unwrapping<sup id="fnref:6"><a href="#fn:6" rel="footnote">6</a></sup>. Conditional Statements are required as Failure when one of the values is missing is a requirement of our Model and is guaranteed to exist in the XML.</p>
@@ -220,7 +226,7 @@ public struct Zoo {
 
 <h3>Next Time&hellip;</h3>
 
-<p><a href="/blog/2014/09/11/swift-parsers-functional/">Next time</a>, we&rsquo;ll take a Functional approach to the <code>decode</code> method, allowing us to think at a much higher level about how a Model is built.</p>
+<p><a href="/blog/2014/09/12/swift-parsers-functional/">Next time</a>, we&rsquo;ll take a Functional approach to the <code>decode</code> method, allowing us to think at a much higher level about how a Model is built.</p>
 <div class="footnotes">
 <hr/>
 <ol>
@@ -255,7 +261,7 @@ public struct Zoo {
   
 
 
-<time datetime="2014-09-11T22:30:00+01:00" pubdate data-updated="true"></time></div>
+<time datetime="2014-09-12T22:30:01+01:00" pubdate data-updated="true"></time></div>
 	<div class="tags">
 
 
@@ -308,8 +314,8 @@ public struct Zoo {
       
         
         // var disqus_developer = 1;
-        var disqus_identifier = 'http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-imperative/';
-        var disqus_url = 'http://lawrencelomax.github.io/blog/2014/09/11/swift-parsers-imperative/';
+        var disqus_identifier = 'http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-imperative/';
+        var disqus_url = 'http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-imperative/';
         var disqus_script = 'embed.js';
       
     (function () {
