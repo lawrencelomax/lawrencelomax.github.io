@@ -4,7 +4,7 @@
   <title><![CDATA[Category: swift | A Singleton is Deallocated]]></title>
   <link href="http://lawrencelomax.github.io/blog/categories/swift/atom.xml" rel="self"/>
   <link href="http://lawrencelomax.github.io/"/>
-  <updated>2014-09-12T18:31:42+01:00</updated>
+  <updated>2014-09-15T07:29:35+01:00</updated>
   <id>http://lawrencelomax.github.io/</id>
   <author>
     <name><![CDATA[Lawrence Lomax]]></name>
@@ -18,7 +18,7 @@
     <link href="http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-libraries/"/>
     <updated>2014-09-12T22:30:03+01:00</updated>
     <id>http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-libraries</id>
-    <content type="html"><![CDATA[<p>In the previous posts in this series the Parsers have used a hypothetical <code>XMLParsableType</code> Protocol for fetching data from an XML Element. I previously mentioned that there are myriad libraries and methods for parsing an XML document for iOS. All of the code in this article and previous articles <a href="http://github.com/lawrencelomax/XMLParsable">is available on GitHub</a>.</p>
+    <content type="html"><![CDATA[<p>In the previous posts in this series the Parsers have used a hypothetical <code>XMLParsableType</code> Protocol for fetching data from an XML Element. I previously mentioned that there are myriad libraries and methods for parsing an XML document for iOS. All of the code in this article and covered in previous articles <a href="http://github.com/lawrencelomax/XMLParsable">is available on GitHub</a>.</p>
 
 <p>In this post we&rsquo;re going to take a look at two things:
 1. How <code>XMLParsableType</code> can be implemented using <code>libxml2</code>.
@@ -106,7 +106,7 @@
 };
 </code></pre>
 
-<p>This is a redeclaration of libxml enum types, with a naming convention that works well in Swift:</p>
+<p>This is a redeclaration of libxml enum values, <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/BuildingCocoaApps/InteractingWithCAPIs.html#//apple_ref/doc/uid/TP40014216-CH8-XID_13">with a naming convention that will play nice with Swift</a>:</p>
 
 <pre><code>switch LibXMLDOMGetElementType(child) {
 case .ELEMENT_NODE:
@@ -232,7 +232,7 @@ private class func wrapInSequence(reader: xmlTextReaderPtr) -&gt; Result&lt;Read
 }
 </code></pre>
 
-<p>In the <code>LibXMLReader</code> class, a <code>Context</code> class is created to dispose the manually memory managed <code>libxml</code> structures:</p>
+<p>In the <code>LibXMLReader</code> class, a <code>Context</code> class is used as a container to hide the details of the interface between Swift and <code>libxml</code>. This is all wrapped up in a structure<sup id="fnref:5"><a href="#fn:5" rel="footnote">5</a></sup> containing a Reader pointer and a Sequence which will advance the Reader as it is consumed. It also has a <code>dispose</code> method for resource cleanup of the manually memory managed <code>libxml</code> structures. Note that there should only be one <code>Context</code> per reader to avoid multiple freeing of the Reader:</p>
 
 <pre><code>internal final class LibXMLReader {
     internal struct Context {
@@ -337,7 +337,7 @@ private class func wrapInSequence(reader: xmlTextReaderPtr) -&gt; Result&lt;Read
 }
 </code></pre>
 
-<p>The <code>LibXMLDOM.Context</code> is just a internal class responsible for cleaning up the manual-memory-managed <code>libxml2</code> DOM document when the root node is deallocated:</p>
+<p>The <code>LibXMLDOM.Context</code> is just a internal class responsible for cleaning up the manual-memory-managed <code>libxml2</code> DOM document when the root node is deallocated. Again, there is only one <code>Context</code> per Reader:</p>
 
 <pre><code>internal final class LibXMLDOM {
     struct Context {
@@ -395,22 +395,22 @@ private class func wrapInSequence(reader: xmlTextReaderPtr) -&gt; Result&lt;Read
 
 <p>I&rsquo;d probably opt to use &lsquo;Implementation 3&rsquo;, which wraps the original <code>libxml</code> DOM in the <code>XMLParsableType</code> protocol. It is by far the simplest and has very good performance. Even when resources are at a premium it can be better to opt for the simpler solution, even if it means sacrificing a little performance. Maintainability and understandability are important qualities in code, so that the code can be revisited and revised by others and understandable for years to come. As &lsquo;Implementation 3&rsquo; is the most performant and simplest to implement, hard to argue that it is the one to go for!</p>
 
-<p>I hope you&rsquo;ve enjoyed this series of posts, I&rsquo;d love to hear your thoughts and comments!</p>
+<p>I hope you&rsquo;ve enjoyed this series of posts, I&rsquo;d love to hear your thoughts and comments! Have a look at the <a href="https://github.com/lawrencelomax/XMLParsable"><code>XMLParsable</code> project and run the tests for yourself!</a> I&rsquo;m <a href="https://twitter.com/insertjokehere/">@insertjokehere on Twitter</a> &amp; <a href="https://github.com/lawrencelomax">lawrencelomax on GitHub</a>.</p>
 
 <hr />
-
-<p>For this reason the Event-Based Streaming SAX parser could be used instead, the whole document need not be read into memory at the expense of a more troublesome interface. Eventually a compromise was found with the StAX parser, buffering the input document with a Cursorable navigation mechanism.</p>
 <div class="footnotes">
 <hr/>
 <ol>
 <li id="fn:1">
 <p><a href="https://developer.apple.com/library/mac/documentation/cocoa/reference/foundation/classes/nsxmlparser_class/reference/reference.html">NSXMLParser</a> has been part of Cocoa for many years now and would also be suitable, however it only implements an event-based <code>SAX</code>-style interface. While it is certainly possible to make a <code>XMLParserType</code> implementation using NSXMLParser, I won&rsquo;t consider it for now.<a href="#fnref:1" rev="footnote">&#8617;</a></p></li>
 <li id="fn:2">
-<p>I cut my programming teeth on Java. When consuming an XML Document of greater than a MB or so the JVM Heap could get hammered when using a DOM style parser. This could be hugely problematic when intertwined with a Garbage Collector. I wonder if the ubiquity of JSON Parsers that output to a fully reified Data Structure, rather than Event Based parsers has anything to do with the increased availability of resources since JSON came into vogue.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
+<p>I remember all of this from my early programming days in Java. When consuming an XML Document of greater than a MB or so the JVM Heap could get hammered when using a DOM style parser. This could be hugely problematic when intertwined with a Garbage Collector. I wonder if the ubiquity of JSON Parsers that output to a fully reified Data Structure, rather than Event Based parsers has anything to do with the increased availability of resources since JSON came into vogue.<a href="#fnref:2" rev="footnote">&#8617;</a></p></li>
 <li id="fn:3">
 <p>Ok I lied, there I use a lot of Bridging functions that use <code>NSString</code>, but an <code>NSString</code> is instantly converted to a Swift <code>String</code><a href="#fnref:3" rev="footnote">&#8617;</a></p></li>
 <li id="fn:4">
-<p>This is the perfect candidate for usage of a <code>struct</code> instead of a <code>class</code>. We don&rsquo;t need for this to be subclassed, or any disposal semantics in <code>dealloc</code>. Reference counting is totally unnecessary as this structure represents an Immutable value. I&rsquo;d love to take a look at the performance of passing structs around, <a href="https://devforums.apple.com/message/990361#990361">it looks like Array and Dictionary struct types use copy-on-write</a> but I have no idea if this applies to User defined structs. <a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+<p>This is the perfect candidate for usage of a <code>struct</code> instead of a <code>class</code>. We don&rsquo;t need for this to be subclassed, or any disposal semantics in <code>dealloc</code>. Reference counting is totally unnecessary as this structure represents an Immutable value. I&rsquo;d love to take a look at the performance of passing structs around, <a href="https://devforums.apple.com/message/990361#990361">it looks like Array and Dictionary struct types use copy-on-write</a> but I have no idea if this applies to User defined structs. <a href="http://www.objc.io/issue-16/swift-classes-vs-structs.html">Andy Matuschak</a> has a great overview of the differences and ideal Use Cases for <code>structs</code>.<a href="#fnref:4" rev="footnote">&#8617;</a></p></li>
+<li id="fn:5">
+<p>This could also be put in a tuple as it is essentially just used for multiple-return in a method. However, creating inner or standalone classes/structures in Swift is so easy to do that it can give some information about the relationship between the returned data.<a href="#fnref:5" rev="footnote">&#8617;</a></p></li>
 </ol>
 </div>
 
@@ -424,7 +424,7 @@ private class func wrapInSequence(reader: xmlTextReaderPtr) -&gt; Result&lt;Read
     <id>http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-functional</id>
     <content type="html"><![CDATA[<p>In the <a href="/blog/2014/09/12/swift-parsers-imperative/">previous post</a> we built a <code>decode</code> function to parse data out from XML and into an <code>Animal</code> Model using Imperative techniques. This required some efforts in order to satisfy some of the robustness requirements from the <a href="/blog/2014/09/12/swift-parsers-introduction/">first post</a>.</p>
 
-<p>In this post we&rsquo;ll cover how we can use Functional Programming techniques on top of the language features of Swift to decode XML to an <code>Animal</code> model. This post assumes that you are comfortable with the <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Generics.html#//apple_ref/doc/uid/TP40014097-CH26-XID_278">Parameterized Types and Generics</a>.</p>
+<p>In this post we&rsquo;ll cover how we can use Functional Programming techniques on top of the language features of Swift to decode XML to an <code>Animal</code> model. This post assumes that you are comfortable with the <a href="https://developer.apple.com/library/prerelease/ios/documentation/Swift/Conceptual/Swift_Programming_Language/Generics.html#//apple_ref/doc/uid/TP40014097-CH26-XID_278">Parameterized Types and Generics</a>. Sample Code for is <a href="http://github.com/lawrencelomax/XMLParsable">available on GitHub</a>.</p>
 
 <h3>Thinking Functionally</h3>
 
@@ -699,7 +699,7 @@ let third: Result&lt;Animal&gt; = second &lt;*&gt; url
     <link href="http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-imperative/"/>
     <updated>2014-09-12T22:30:01+01:00</updated>
     <id>http://lawrencelomax.github.io/blog/2014/09/12/swift-parsers-imperative</id>
-    <content type="html"><![CDATA[<p>In the <a href="/blog/2014/09/12/swift-parsers-introduction/">previous post</a> I talked about some of the possible requirements for a Parser that extracts data from a Serialization Format and places it in a Language-Native Model. In this post I&rsquo;ll cover how an XML Parser for a Model Object can be built using some of the familiar Imperative features of Swift. Sample Code is <a href="http://github.com/lawrencelomax/XMLParsable">available on GitHub</a>.</p>
+    <content type="html"><![CDATA[<p>In the <a href="/blog/2014/09/12/swift-parsers-introduction/">previous post</a> I talked about some of the possible requirements for a Parser that extracts data from a Serialization Format and places it in a Language-Native Model. In this post I&rsquo;ll cover how an XML Parser for a Model Object can be built using some of the familiar Imperative features of Swift. Sample Code for this and future posts <a href="http://github.com/lawrencelomax/XMLParsable">available on GitHub</a>.</p>
 
 <h3>Model and XML</h3>
 
